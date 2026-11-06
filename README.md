@@ -30,6 +30,7 @@ Program dijital imzalı olmadığı için Windows ilk açılışta "Bilgisayarı
 - Microsoft Edge WebView2. Windows 11'de hazır gelir. Eksikse kurulum sihirbazı indirme sayfasını açmayı önerir.
 - iPhone. Gönderim sayfası Safari ile çalışır, Paylaş menüsü için Kestirmeler uygulaması gerekir. iOS 27 ile denenmiştir.
 - iPhone ile bilgisayar aynı Wi-Fi ağında olmalı. Windows'ta bu ağın profili **Özel** olmalıdır (Ayarlar > Ağ ve İnternet > Wi-Fi > ağınız > Ağ profili türü). Ağ Genel olarak ayarlıysa WinDrop uyarı gösterir. Misafir ağları ve bazı iş ağları cihazların birbirini görmesine izin vermez.
+- Telefonu "Ad ile" QR koduyla eklerseniz adres her Wi-Fi ağında çalışır; telefon ile bilgisayarın aynı ağda olması yeterlidir. "IP ile" eklenen adres yalnızca eklendiği ağda geçerlidir.
 
 Yönetici hesabı gerekmez. Program yalnızca sizin kullanıcınıza kurulur. Güvenlik duvarı izni eklemek isterseniz Windows bir kez onay ister.
 
@@ -51,7 +52,7 @@ Kestirmedeki "URL İçeriğini Al" bloğunun Başlıklar bölümünde soldaki **
 
 Dosyalar yalnızca yerel ağ üzerinden gider. WinDrop internete dosya ya da veri göndermez, kullanım bilgisi toplamaz. Ayarlar, gelen dosyaların listesi ve günlük `%LOCALAPPDATA%\WinDrop\data` klasöründe durur.
 
-Telefonun bağlandığı adres, her kurulumda rastgele üretilen 16 haneli gizli bir anahtar içerir. Bu anahtarı bilmeyen bir cihaz dosya gönderemez. Sunucu yalnızca özel ağ adreslerinden gelen istekleri kabul eder. Bilgisayardaki pencere yalnızca o bilgisayardan açılabilir.
+Telefonun bağlandığı adres, bilgisayara özel 16 haneli bir eşleşme kodu içerir. Kod kurulumda bir kez rastgele üretilir ve sonra değişmez. Ayar dosyasında, bu dosyanın yedeğinde ve Windows kayıt defterinde saklanır; ayar dosyası okunamazsa WinDrop yeni kod üretmek yerine yedeği kullanır. Kodu programdaki Telefonu bağla bölümünde görebilirsiniz. Bu kodu bilmeyen bir cihaz dosya gönderemez. Sunucu yalnızca özel ağ adreslerinden gelen istekleri kabul eder. Bilgisayardaki pencere yalnızca o bilgisayardan açılabilir.
 
 Bağlantı HTTP ile kurulur ve şifrelenmez. iOS, yerel ağdaki bir bilgisayar için güvenilir sertifika kurmayı zorlaştırdığı için bu tercih edildi. WinDrop'u ev ağı gibi güvendiğiniz ağlarda kullanın.
 

@@ -19,7 +19,7 @@ const toastLib = require('./toast');
 // Tek exe (Node SEA) içinde mi çalışıyoruz? Öyleyse sayfalar exe'ye gömülüdür.
 let sea = null;
 try { const s = require('node:sea'); if (s.isSea()) sea = s; } catch { sea = null; }
-const VERSION = '1.3.0';
+const VERSION = '1.3.1';
 const ROOT = path.resolve(__dirname, '..');
 const PUBLIC_DIR = path.join(ROOT, 'public');
 function defaultDataDir() {
@@ -90,16 +90,97 @@ function localStamp(d = new Date()) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}.${p(d.getMilliseconds(), 3)}`;
 }
 
+// Ayar klasörüne yazılamazsa olaylar geçici klasördeki bu dosyaya düşer; sorunun izi kaybolmaz.
+function fallbackLog(line) {
+  try { fs.appendFileSync(path.join(os.tmpdir(), 'WinDrop-hata.log'), line); } catch { /* yapacak başka bir şey yok */ }
+}
+
 function createLogger(file, toStdout) {
   return function log(level, ...parts) {
+    let line = '';
     try {
       const msg = parts.map((p) => (p instanceof Error ? (p.stack || p.message) : typeof p === 'string' ? p : JSON.stringify(p))).join(' ');
-      const line = `${localStamp()} [${level}] ${msg}\n`;
+      line = `${localStamp()} [${level}] ${msg}\n`;
       try { if (fs.statSync(file).size > 5 * 1024 * 1024) fs.renameSync(file, file + '.1'); } catch {}
       fs.appendFileSync(file, line);
       if (toStdout) process.stdout.write(line);
-    } catch { /* günlük yazılamazsa sessizce geç */ }
+    } catch (e) {
+      if (line) fallbackLog(`${line.trimEnd()}  [günlük yazılamadı: ${file}: ${e.code || e.message}]\n`);
+    }
   };
+}
+
+// ------------------------------------------------------------- eşleşme kodu
+// Kod üç yerde tutulur: config.json, config.json.bak ve (kurulu programda) kayıt defteri.
+// Okunamayan bir ayar dosyası yüzünden kod asla sessizce değişmez.
+const REG_KEY = 'HKCU\\Software\\WinDrop';
+
+function readRegistryToken() {
+  if (process.platform !== 'win32') return null;
+  try {
+    const r = spawnSync('reg.exe', ['query', REG_KEY, '/v', 'PairingCode'], { encoding: 'utf8', windowsHide: true, timeout: 5000 });
+    const m = r.status === 0 && /PairingCode\s+REG_SZ\s+([0-9a-f]{16})/i.exec(r.stdout || '');
+    return m ? m[1].toLowerCase() : null;
+  } catch { return null; }
+}
+
+function writeRegistryToken(token, log) {
+  try {
+    const p = spawn('reg.exe', ['add', REG_KEY, '/v', 'PairingCode', '/t', 'REG_SZ', '/d', token, '/f'], { windowsHide: true, stdio: 'ignore' });
+    p.on('error', () => {});
+    p.on('exit', (c) => { if (c !== 0) log('warn', 'Eşleşme kodunun kayıt defteri yedeği yazılamadı'); });
+  } catch { /* yedek yazılamazsa ana dosya yine geçerli */ }
+}
+
+function loadConfig(configFile, log, useRegistry) {
+  const exists = fs.existsSync(configFile);
+  let cfg = null, lastErr = null, changed = false;
+  if (exists) {
+    // Windows açılırken dosya kısa süre erişilemez olabilir: birkaç kez dene.
+    for (let i = 0; i < 10 && !cfg; i++) {
+      try {
+        const c = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+        if (c && typeof c === 'object' && !Array.isArray(c)) cfg = c;
+        else throw new Error('geçersiz içerik');
+      } catch (e) { lastErr = e; if (i < 9) sleepSync(300); }
+    }
+    if (!cfg) {
+      log('error', `Ayar dosyası okunamadı: ${lastErr && (lastErr.code || lastErr.message)}`);
+      // Üzerine yazılmadan önce bozuk dosyanın bir kopyası saklanır (nedenini anlamak için).
+      try { fs.copyFileSync(configFile, `${configFile}.bozuk-${Date.now()}`); } catch {}
+      const bak = readJson(configFile + '.bak', null);
+      if (bak && typeof bak === 'object' && /^[0-9a-f]{16}$/.test(String(bak.token || ''))) {
+        cfg = bak;
+        changed = true;
+        log('warn', 'Ayarlar yedek dosyadan geri yüklendi, eşleşme kodu korundu');
+      }
+    }
+  }
+  const regToken = useRegistry ? readRegistryToken() : null;
+  if (!cfg) {
+    if (exists && !regToken) {
+      const e = new Error('Ayar dosyası okunamıyor ve yedeği yok. Eşleşme kodunu değiştirmemek için WinDrop başlatılmadı.');
+      e.code = 'CONFIG_UNREADABLE';
+      throw e;
+    }
+    cfg = {};
+    changed = true;
+  }
+  if (!/^[0-9a-f]{16}$/.test(String(cfg.token || ''))) {
+    if (regToken) {
+      cfg.token = regToken;
+      log('warn', 'Eşleşme kodu kayıt defterindeki yedekten geri yüklendi');
+    } else {
+      cfg.token = crypto.randomBytes(8).toString('hex');
+      log('info', 'Yeni eşleşme kodu üretildi');
+    }
+    changed = true;
+  }
+  return { cfg, changed, regToken };
+}
+
+function formatCode(token) {
+  return String(token).toUpperCase().match(/.{1,4}/g).join('-');
 }
 
 // ----------------------------------------------------------- adres denetimi
@@ -460,9 +541,13 @@ function createApp(options = {}) {
   const configFile = path.join(dataDir, 'config.json');
   const receivedFile = path.join(dataDir, 'received.json');
 
-  const cfg = readJson(configFile, null) || {};
-  let cfgChanged = false;
-  if (!/^[0-9a-f]{16}$/.test(String(cfg.token || ''))) { cfg.token = crypto.randomBytes(8).toString('hex'); cfgChanged = true; }
+  // Kayıt defteri yedeği yalnızca kurulu programın varsayılan ayar klasöründe kullanılır;
+  // testler ve geliştirme sürümü gerçek kodu etkilemez.
+  const useRegistry = !!sea && process.platform === 'win32' && !process.env.WINDROP_NO_REGISTRY &&
+    path.resolve(defaultDataDir()).toLowerCase() === dataDir.toLowerCase();
+  const loaded = loadConfig(configFile, log, useRegistry);
+  const cfg = loaded.cfg;
+  let cfgChanged = loaded.changed;
   if (!cfg.dest || typeof cfg.dest !== 'string') { cfg.dest = findDownloads(); cfgChanged = true; }
   cfg.dest = path.resolve(cfg.dest);
   const destLabel = path.basename(cfg.dest).toLowerCase() === 'downloads' ? 'İndirilenler' : path.basename(cfg.dest);
@@ -919,7 +1004,7 @@ function createApp(options = {}) {
       mdns: mdns ? mdns.status() : { disabled: true },
       active, recent, lastReceivedAt, awake: hasAwake(), ffmpeg: !!toastLib.findFfmpeg(), hostname: os.hostname(),
       network: networkInfo(ifaces, primary), version: VERSION, packaged: !!sea,
-      onboarded: !!cfg.onboarded, total: received.length,
+      onboarded: !!cfg.onboarded, total: received.length, code: formatCode(cfg.token),
     };
   }
 
@@ -981,7 +1066,7 @@ function createApp(options = {}) {
       }
       if (p === '/api/onboarded') {
         cfg.onboarded = body.value !== false;
-        writeJsonSafe(configFile, cfg, log);
+        saveConfig();
         return sendJson(res, 200, { ok: true, onboarded: cfg.onboarded });
       }
       const e = received.find((x) => x.rid === body.rid);
@@ -1020,6 +1105,45 @@ function createApp(options = {}) {
     return a.length === b.length && crypto.timingSafeEqual(a, b);
   }
 
+  // Ayarlar config.json, config.json.bak ve (kurulu programda) kayıt defterine yazılır.
+  function saveConfig() {
+    writeJsonSafe(configFile, cfg, log);
+    writeJsonSafe(configFile + '.bak', cfg, log);
+    if (useRegistry && loaded.regToken !== cfg.token) {
+      writeRegistryToken(cfg.token, log);
+      loaded.regToken = cfg.token;
+    }
+  }
+
+  // Kod biçimi doğru ama bu bilgisayarınki değil: telefondaki adres eskimiş olabilir.
+  const wrongTokenSeen = new Map();
+  function handleWrongToken(req, res, remote) {
+    req.resume();
+    const ip = normalizeAddr(remote);
+    if (Date.now() - (wrongTokenSeen.get(ip) || 0) > 60000) {
+      wrongTokenSeen.set(ip, Date.now());
+      log('warn', `Eşleşme kodu uyuşmayan istek: ${ip} (telefondaki adres eski olabilir)`);
+      if (!isLoopback(remote)) {
+        notifier.message('wrong-token', 'Telefon eski bir adresle bağlandı',
+          ['Telefondaki WinDrop adresi bu bilgisayarın eşleşme koduyla uyuşmuyor.', 'WinDrop\'ta Telefonu bağla bölümündeki QR kodu yeniden okutun.']);
+      }
+    }
+    const text = 'Eşleşme kodu uyuşmuyor. Bilgisayardaki WinDrop\'ta Telefonu bağla bölümündeki QR kodu yeniden okutun; kestirme kullanıyorsanız oradaki adresi de yenileyin.';
+    if (req.method === 'GET' && String(req.headers.accept || '').includes('text/html')) {
+      const html = '<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' +
+        '<meta name="color-scheme" content="light dark"><title>WinDrop</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;' +
+        'font:17px/1.45 -apple-system,system-ui,sans-serif;background:#f2f2f7;color:#1c1c1e;padding:24px;box-sizing:border-box;text-align:center}' +
+        '@media (prefers-color-scheme:dark){body{background:#000;color:#f2f2f7}p{color:#98989f}}h1{font-size:24px;margin:0 0 10px}p{color:#6e6e73;max-width:420px;margin:0 auto}' +
+        '</style></head><body><div><h1>Eşleşme kodu uyuşmuyor</h1><p>Bu adres, bilgisayardaki WinDrop\'un eşleşme koduyla uyuşmuyor. ' +
+        'Bilgisayarda WinDrop\'u açın, <b>Telefonu bağla</b> bölümündeki QR kodu okutun ve sayfayı ana ekrana yeniden ekleyin. ' +
+        'Paylaş menüsünü kullanıyorsanız kestirmedeki adresi de yeni adresle değiştirin.</p></div></body></html>';
+      const body = Buffer.from(html, 'utf8');
+      res.writeHead(404, { ...BASE_HEADERS, 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Content-Length': body.length });
+      return res.end(body);
+    }
+    return sendText(res, 404, text);
+  }
+
   async function handle(req, res) {
     const remote = req.socket.remoteAddress;
     if (!isPrivateAddress(remote)) {
@@ -1032,6 +1156,7 @@ function createApp(options = {}) {
     try { u = new URL(req.url, 'http://windrop.invalid'); } catch { req.resume(); return sendText(res, 400, 'Geçersiz adres'); }
     const parts = u.pathname.split('/');
     if (parts[1] && tokenMatches(parts[1])) return handlePhone(req, res, u, parts.slice(2), remote);
+    if (/^[0-9a-f]{16}$/i.test(parts[1] || '')) return handleWrongToken(req, res, remote);
     if (isLoopback(remote) && hostIsLocal(req.headers.host)) return handlePanel(req, res, u);
     req.resume();
     return sendText(res, 404, 'Bulunamadı');
@@ -1122,9 +1247,9 @@ function createApp(options = {}) {
       cfgChanged = true;
       log('info', `Ağdaki ad: ${cfg.mdnsName}`);
     }
-    if (cfgChanged) { writeJsonSafe(configFile, cfg, log); cfgChanged = false; }
+    if (cfgChanged || !fs.existsSync(configFile + '.bak') || (useRegistry && loaded.regToken !== cfg.token)) { saveConfig(); cfgChanged = false; }
 
-    log('info', `WinDrop başladı (pid ${process.pid}) port ${actualPort}, hedef: ${cfg.dest}`);
+    log('info', `WinDrop başladı (pid ${process.pid}) port ${actualPort}, hedef: ${cfg.dest}, ayarlar: ${dataDir}, eşleşme kodu: ${formatCode(cfg.token).slice(0, 4)}-…`);
     try { await ensureTmp(); } catch (e) { log('warn', `Geçici klasör hazırlanamadı: ${e.message}`); }
     cleanupTmp().catch(() => {});
     notifier.cleanupThumbs();
@@ -1175,8 +1300,10 @@ function main() {
   }
   let app;
   try { app = createApp({ dataDir }); } catch (e) {
-    try { fs.mkdirSync(dataDir, { recursive: true }); fs.appendFileSync(path.join(dataDir, 'windrop.log'), `${localStamp()} [error] Başlatılamadı: ${e.stack || e.message}\n`); } catch {}
-    process.exit(1);
+    const line = `${localStamp()} [error] Başlatılamadı: ${e.stack || e.message}\n`;
+    try { fs.mkdirSync(dataDir, { recursive: true }); fs.appendFileSync(path.join(dataDir, 'windrop.log'), line); } catch { fallbackLog(line); }
+    // Bildirim alanındaki program birkaç saniye sonra yeniden dener (açılıştaki geçici erişim sorunları için).
+    process.exit(e.code === 'CONFIG_UNREADABLE' ? 3 : 1);
   }
   process.on('uncaughtException', (e) => app.log('error', `Yakalanmamış hata: ${e && (e.stack || e.message)}`));
   process.on('unhandledRejection', (e) => app.log('error', `Yakalanmamış söz: ${e && (e.stack || e.message || e)}`));
@@ -1192,7 +1319,7 @@ function main() {
 }
 
 module.exports = {
-  createApp, main, sanitizeName, splitExt, sniffExt, decodeHeaderName, isPrivateAddress, isLoopback, hostIsLocal, slugHost,
+  createApp, main, loadConfig, formatCode, sanitizeName, splitExt, sniffExt, decodeHeaderName, isPrivateAddress, isLoopback, hostIsLocal, slugHost,
   makeIconPng, makeIco, writeIcons, encodePng, iconRgba, findDownloads, MAX_CHUNK, TMP_DIR_NAME, VERSION,
 };
 

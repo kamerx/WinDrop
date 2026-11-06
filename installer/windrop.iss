@@ -1,6 +1,6 @@
 ﻿; WinDrop kurulum sihirbazı (Inno Setup 6). build\build.ps1 ile derlenir.
 #define AppName "WinDrop"
-#define AppVersion "1.3.0"
+#define AppVersion "1.3.1"
 #define BuildDir "..\dist\build"
 
 [Setup]
@@ -17,6 +17,7 @@ VersionInfoDescription=WinDrop kurulumu
 VersionInfoProductName={#AppName}
 DefaultDirName={localappdata}\Programs\WinDrop
 DisableDirPage=yes
+UsePreviousAppDir=no
 DisableProgramGroupPage=yes
 DisableWelcomePage=no
 DisableFinishedPage=no
@@ -73,6 +74,11 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 [Run]
 Filename: "{app}\WinDrop.exe"; Description: "WinDrop'u şimdi aç"; Flags: postinstall nowait skipifsilent
 
+[InstallDelete]
+; Eski adla (KMRDrop) kalmış kısayollar
+Type: files; Name: "{autodesktop}\KMRDrop.lnk"
+Type: files; Name: "{autoprograms}\KMRDrop.lnk"
+
 [UninstallRun]
 Filename: "{app}\WinDrop.exe"; Parameters: "/quit"; Flags: runhidden waituntilterminated; RunOnceId: "QuitTray"
 
@@ -126,13 +132,41 @@ begin
   Result := Exec(ExpandConstant('{sys}\netsh.exe'), 'advfirewall firewall show rule name="' + RuleTcp + '"', '', SW_HIDE, ewWaitUntilTerminated, Code) and (Code = 0);
 end;
 
-// Güncellemede çalışan WinDrop'u kapat ki dosyalar değiştirilebilsin.
-function PrepareToInstall(var NeedsRestart: Boolean): String;
+function IsWinDropDir(const Dir: String): Boolean;
+begin
+  Result := FileExists(AddBackslash(Dir) + 'windrop-server.exe') or FileExists(AddBackslash(Dir) + 'kmrdrop-server.exe');
+end;
+
+// Başka bir klasörde kalmış eski bir kopya açılışta yanlışlıkla başlayabilir: kapat ve sil.
+// Yalnızca içinde WinDrop sunucusu olan ve bu kurulumun klasörü olmayan klasörler silinir.
+procedure RemoveStrayCopy(const Dir: String);
 var
   Code: Integer;
 begin
+  if (Dir = '') or (not DirExists(Dir)) then Exit;
+  if CompareText(AddBackslash(Dir), AddBackslash(ExpandConstant('{app}'))) = 0 then Exit;
+  if not IsWinDropDir(Dir) then Exit;
+  if FileExists(AddBackslash(Dir) + 'WinDrop.exe') then
+    Exec(AddBackslash(Dir) + 'WinDrop.exe', '/quit', '', SW_HIDE, ewWaitUntilTerminated, Code);
+  if FileExists(AddBackslash(Dir) + 'KMRDrop.exe') then
+    Exec(AddBackslash(Dir) + 'KMRDrop.exe', '/quit', '', SW_HIDE, ewWaitUntilTerminated, Code);
+  DelTree(Dir, True, True, True);
+  Log('Eski WinDrop kopyası silindi: ' + Dir);
+end;
+
+// Güncellemede çalışan WinDrop'u kapat ki dosyalar değiştirilebilsin; eski kopyaları temizle.
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  Code: Integer;
+  Prev: String;
+begin
   if FileExists(ExpandConstant('{app}\WinDrop.exe')) then
     Exec(ExpandConstant('{app}\WinDrop.exe'), '/quit', '', SW_HIDE, ewWaitUntilTerminated, Code);
+  if RegQueryStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{6F1C2B9E-3A7D-4E58-9C21-5B8E0D4A7F13}_is1', 'InstallLocation', Prev) then
+    RemoveStrayCopy(RemoveBackslash(Prev));
+  RemoveStrayCopy(ExpandConstant('{localappdata}\Programs\KMRDrop'));
+  RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'KMRDrop');
+  RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\AppUserModelId\KMRDrop');
   Result := '';
 end;
 
@@ -165,7 +199,10 @@ begin
   begin
     RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\AppUserModelId\WinDrop');
     if (not UninstallSilent()) and DirExists(ExpandConstant('{localappdata}\WinDrop')) then
-      if MsgBox('WinDrop ayarları (bağlantı adresi ve geçmiş) da silinsin mi?' + #13#10 + 'Gelen fotoğraf ve videolarınız silinmez.', mbConfirmation, MB_YESNO) = IDYES then
+      if MsgBox('WinDrop ayarları (eşleşme kodu ve geçmiş) da silinsin mi?' + #13#10 + 'Gelen fotoğraf ve videolarınız silinmez.', mbConfirmation, MB_YESNO) = IDYES then
+      begin
         DelTree(ExpandConstant('{localappdata}\WinDrop'), True, True, True);
+        RegDeleteKeyIncludingSubkeys(HKCU, 'Software\WinDrop');
+      end;
   end;
 end;

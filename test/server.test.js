@@ -607,6 +607,75 @@ test('sayfa betikleri sözdizimi hatası içermez', () => {
   }
 });
 
+// Ayrı bir sunucu süreci (kendi klasörü ve portuyla) başlatır; çıkış kodunu bekleyebilmek için süreci döndürür.
+function spawnExtra(dir) {
+  return spawn(SERVER_EXE || process.execPath, SERVER_EXE ? [] : [SERVER], {
+    env: { ...process.env, WINDROP_DATA: dir, WINDROP_NO_MDNS: '1', WINDROP_NO_TOAST: '1', WINDROP_NO_REGISTRY: '1' },
+    stdio: 'ignore', windowsHide: true,
+  });
+}
+function getOn(port, p) {
+  return new Promise((resolve) => {
+    const req = http.request({ host: '127.0.0.1', port, path: p, agent: false }, (res) => { res.resume(); res.on('end', () => resolve(res.statusCode)); });
+    req.on('error', () => resolve(0));
+    req.end();
+  });
+}
+
+test('eşleşme kodu: ayar dosyası bozuksa yedekten geri gelir, kod değişmez', async () => {
+  const dir = path.join(tmpRoot, 'yedekten');
+  const port = PORT + 7;
+  const code = '0f1e2d3c4b5a6978';
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'config.json'), '{bozuk');
+  fs.writeFileSync(path.join(dir, 'config.json.bak'), JSON.stringify({ port, token: code, dest: destDir }));
+  const p = spawnExtra(dir);
+  try {
+    let ok = 0;
+    for (let i = 0; i < 80 && ok !== 200; i++) { await sleep(150); ok = await getOn(port, `/${code}/api/info`); }
+    assert.equal(ok, 200, 'sunucu yedekteki kodla açılmadı');
+    const repaired = JSON.parse(fs.readFileSync(path.join(dir, 'config.json'), 'utf8'));
+    assert.equal(repaired.token, code);
+    assert.ok(fs.readdirSync(dir).some((n) => n.startsWith('config.json.bozuk-')), 'bozuk dosyanın kopyası saklanmalı');
+  } finally {
+    p.kill('SIGKILL');
+  }
+});
+
+test('eşleşme kodu: ayar okunamıyor ve yedek yoksa yeni kod üretmez, başlamaz', async () => {
+  const dir = path.join(tmpRoot, 'yedeksiz');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'config.json'), '{bozuk');
+  const p = spawnExtra(dir);
+  const code = await new Promise((resolve) => {
+    const t = setTimeout(() => { p.kill('SIGKILL'); resolve('zaman aşımı'); }, 20000);
+    p.on('exit', (c) => { clearTimeout(t); resolve(c); });
+  });
+  assert.equal(code, 3);
+  assert.equal(fs.readFileSync(path.join(dir, 'config.json'), 'utf8'), '{bozuk');
+  assert.match(fs.readFileSync(path.join(dir, 'windrop.log'), 'utf8'), /Eşleşme kodunu değiştirmemek için WinDrop başlatılmadı/);
+});
+
+test('eşleşme kodu yedeklenir, panelde dörder haneli görünür', async () => {
+  const bak = JSON.parse(fs.readFileSync(path.join(dataDir, 'config.json.bak'), 'utf8'));
+  assert.equal(bak.token, TOKEN);
+  const st = await request('GET', '/api/state', { hostHeader: 'localhost' });
+  assert.equal(st.json.code, 'A1B2-C3D4-E5F6-0718');
+  assert.equal(lib.formatCode('0123456789abcdef'), '0123-4567-89AB-CDEF');
+});
+
+test('eşleşme kodu uyuşmazsa telefon anlaşılır bir mesaj görür', async () => {
+  const page = await request('GET', '/0123456789abcdef/', { headers: { accept: 'text/html' } });
+  assert.equal(page.status, 404);
+  assert.match(page.text, /Eşleşme kodu uyuşmuyor/);
+  const raw = await request('POST', '/deadbeefdeadbeef/api/raw', { body: 'x' });
+  assert.equal(raw.status, 404);
+  assert.match(raw.text, /Eşleşme kodu uyuşmuyor/);
+  const other = await request('GET', '/nebu-adres/');
+  assert.equal(other.status, 404);
+  assert.doesNotMatch(other.text, /Eşleşme/);
+});
+
 test('simge PNG ve ICO geçerli', () => {
   const png = lib.makeIconPng(32, { rounded: true });
   assert.equal(png.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');

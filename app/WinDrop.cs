@@ -26,9 +26,9 @@ using Microsoft.Win32;
 [assembly: AssemblyCompany("Kamer EKENEL")]
 [assembly: AssemblyProduct("WinDrop")]
 [assembly: AssemblyCopyright("© 2026 Kamer EKENEL")]
-[assembly: AssemblyVersion("1.3.0.0")]
-[assembly: AssemblyFileVersion("1.3.0.0")]
-[assembly: AssemblyInformationalVersion("1.3.0")]
+[assembly: AssemblyVersion("1.3.1.0")]
+[assembly: AssemblyFileVersion("1.3.1.0")]
+[assembly: AssemblyInformationalVersion("1.3.1")]
 
 namespace WinDrop
 {
