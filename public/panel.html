@@ -1,0 +1,957 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" type="image/png" href="/favicon.png">
+<title>WinDrop</title>
+<style>
+:root{
+  --bg:#f2f2f7; --side:#e9e9ee; --card:#fff; --text:#1c1c1e; --muted:#6e6e73; --sep:rgba(60,60,67,.14);
+  --blue:#3A7BF5; --blue-l:#5095FB; --green:#28a745; --red:#ff3b30; --orange:#ff9500;
+  --press:rgba(120,120,128,.12); --seg:rgba(118,118,128,.12); --segon:#fff; --track:rgba(120,120,128,.2);
+  --thumb:#e5e5ea; --overlay:rgba(0,0,0,.42); --shadow:0 12px 40px rgba(0,0,0,.18);
+  --ph-frame:#1c1c1e; --ph-screen:#ffffff; --ph-ink:#1c1c1e; --ph-mute:#8e8e93; --ph-row:#f2f2f7; --ph-sheet:#f2f2f7; --ph-card:#ffffff;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#121214; --side:#1a1a1d; --card:#1f1f22; --text:#f2f2f7; --muted:#98989f; --sep:rgba(255,255,255,.09);
+    --press:rgba(255,255,255,.07); --seg:rgba(118,118,128,.24); --segon:#5a5a5f; --track:rgba(120,120,128,.35);
+    --thumb:#2a2a2e; --overlay:rgba(0,0,0,.6); --shadow:0 12px 40px rgba(0,0,0,.5);
+    --ph-frame:#3a3a3e; --ph-screen:#000; --ph-ink:#f2f2f7; --ph-mute:#8e8e93; --ph-row:#1c1c1e; --ph-sheet:#1c1c1e; --ph-card:#2c2c2e; }
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text)}
+body{font:14px/1.45 "Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;overflow:hidden}
+button{font:inherit;color:inherit}
+.app{display:grid;grid-template-columns:236px 1fr;height:100vh}
+
+/* ---------- kenar çubuğu */
+aside{background:var(--side);display:flex;flex-direction:column;padding:18px 12px 14px;gap:4px;border-right:1px solid var(--sep);-webkit-user-select:none;user-select:none;min-height:0}
+.brand{display:flex;align-items:center;gap:10px;padding:2px 8px 12px}
+.brand svg{width:34px;height:34px;flex:none;filter:drop-shadow(0 3px 8px rgba(58,123,245,.35))}
+.brand b{font-size:18px;font-weight:650;letter-spacing:.2px}
+.status{display:flex;align-items:center;gap:8px;margin:0 8px 14px;font-size:12.5px;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex:none}
+.off .dot{background:var(--red)} .receiving .dot{background:var(--blue)}
+.nav{display:flex;align-items:center;gap:11px;width:100%;border:0;background:none;padding:9px 10px;border-radius:8px;cursor:pointer;text-align:left;font-size:14px}
+.nav:hover{background:var(--press)} .nav.on{background:var(--card);box-shadow:0 1px 2px rgba(0,0,0,.08);font-weight:600}
+.nav svg{width:19px;height:19px;flex:none;color:var(--blue)}
+.nav .badge{margin-left:auto;font-size:11.5px;color:var(--muted);font-weight:500}
+.spacer{flex:1}
+.xfer{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:12px;padding:10px;margin-bottom:8px}
+.xfer svg{width:40px;height:40px;flex:none;transform:rotate(-90deg)}
+.xfer circle{fill:none;stroke-width:4}
+.xfer .tr{stroke:var(--track)} .xfer .br{stroke:var(--blue);stroke-linecap:round;transition:stroke-dashoffset .4s}
+.xfer .xt{min-width:0;font-size:12.5px} .xfer .xt b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.xfer .xt span{color:var(--muted)}
+.netwarn{display:flex;gap:9px;align-items:flex-start;background:rgba(255,149,0,.13);border-radius:10px;padding:9px 10px;margin-bottom:8px;font-size:12px;line-height:1.4;cursor:pointer;border:0;text-align:left;width:100%}
+.netwarn svg{width:17px;height:17px;flex:none;color:var(--orange);margin-top:1px}
+.foot{font-size:11.5px;color:var(--muted);padding:2px 8px;line-height:1.6}
+.foot b{font-weight:600;color:var(--text)}
+.flink{border:0;background:none;padding:0;color:var(--muted);text-decoration:underline;cursor:pointer;font-size:11.5px}
+.flink:hover{color:var(--text)}
+
+/* ---------- ana alan */
+main{min-width:0;min-height:0;overflow:auto}
+section{padding:26px 32px 40px;max-width:1280px}
+.head{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.head h1{font-size:26px;line-height:1.15;font-weight:650;margin:0}
+.head p{margin:3px 0 0;color:var(--muted)}
+.head .grow{flex:1;min-width:200px}
+.seg{display:inline-flex;background:var(--seg);border-radius:9px;padding:2px}
+.seg button{border:0;background:none;padding:6px 14px;border-radius:7px;cursor:pointer;font-size:13px;font-weight:500;white-space:nowrap}
+.seg button.on{background:var(--segon);box-shadow:0 1px 3px rgba(0,0,0,.14)}
+.btn{display:inline-flex;align-items:center;gap:7px;border:0;border-radius:9px;padding:8px 14px;cursor:pointer;background:var(--card);box-shadow:0 0 0 1px var(--sep);font-size:13px;font-weight:500}
+.btn:hover{background:var(--press)}
+.btn svg{width:16px;height:16px;color:var(--blue)}
+.btn.primary{background:var(--blue);color:#fff;box-shadow:none} .btn.primary:hover{background:#2f6fe8}
+.btn.primary svg{color:#fff}
+
+/* galeri */
+.day{font-size:13px;font-weight:600;color:var(--muted);margin:22px 2px 10px;text-transform:none}
+.day:first-child{margin-top:4px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(156px,1fr));gap:14px}
+.tile{border:0;background:none;padding:0;text-align:left;cursor:pointer;min-width:0;-webkit-user-select:none;user-select:none}
+.thumb{position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden;background:var(--thumb);display:grid;place-items:center;transition:transform .15s, box-shadow .15s}
+.tile:hover .thumb{transform:translateY(-2px);box-shadow:var(--shadow)}
+.tile:focus-visible .thumb{outline:3px solid var(--blue);outline-offset:2px}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb.noimg svg.kind{width:42%;height:42%;opacity:.55}
+.vbadge{position:absolute;right:8px;bottom:8px;width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.55);display:grid;place-items:center}
+.vbadge svg{width:12px;height:12px;fill:#fff;margin-left:2px}
+.gonebadge{position:absolute;left:8px;top:8px;font-size:11px;background:rgba(0,0,0,.6);color:#fff;border-radius:6px;padding:2px 7px}
+.tile.gone .thumb{opacity:.5}
+.tname{margin-top:7px;font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tmeta{font-size:12px;color:var(--muted)}
+.empty{display:flex;flex-direction:column;align-items:center;text-align:center;padding:70px 20px;color:var(--muted)}
+.empty svg{width:110px;height:110px;margin-bottom:16px}
+.empty h2{color:var(--text);font-size:19px;margin:0 0 6px;font-weight:600}
+.empty p{margin:0 0 18px;max-width:420px}
+
+/* bağlan */
+.connect{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:22px;align-items:start}
+.card{background:var(--card);border-radius:14px;padding:20px;box-shadow:0 0 0 1px var(--sep)}
+.qrcard{display:flex;flex-direction:column;align-items:center;gap:14px}
+.qr{width:260px;height:260px;background:#fff;border-radius:14px;padding:10px}
+.qr svg{width:100%;height:100%;display:block}
+.qr.empty{display:grid;place-items:center;color:#6e6e73;font-size:13px;text-align:center;padding:24px}
+.url{font:12.5px ui-monospace,"Cascadia Mono",Consolas,monospace;color:var(--muted);word-break:break-all;text-align:center;-webkit-user-select:all;user-select:all}
+.steps{margin:0;padding-left:22px}
+.steps li{margin:0 0 10px}
+.card h3{margin:0 0 12px;font-size:15px}
+code{font:12.5px ui-monospace,"Cascadia Mono",Consolas,monospace;background:var(--seg);padding:2px 6px;border-radius:5px;word-break:break-all}
+.row2{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.ok{color:var(--green)} .warn{color:var(--orange)}
+
+/* ---------- büyük görüntüleme */
+.lb{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:50;display:grid;grid-template-rows:auto 1fr;color:#fff}
+.lbbar{display:flex;align-items:center;gap:12px;padding:12px 16px}
+.lbbar .lt{flex:1;min-width:0}
+.lbbar b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.lbbar span{font-size:12px;color:#c7c7cc}
+.lbbar .btn{background:rgba(255,255,255,.12);box-shadow:none;color:#fff}
+.lbbar .btn svg{color:#fff}
+.lbbar .btn:hover{background:rgba(255,255,255,.2)}
+.lbstage{position:relative;display:grid;place-items:center;min-height:0;padding:0 70px 24px}
+.lbstage img,.lbstage video{max-width:100%;max-height:calc(100vh - 110px);border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.lbmsg{text-align:center;color:#c7c7cc;max-width:380px}
+.lbmsg svg{width:72px;height:72px;opacity:.6}
+.lbnav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.14);color:#fff;cursor:pointer;display:grid;place-items:center}
+.lbnav:hover{background:rgba(255,255,255,.25)} .lbnav:disabled{opacity:.2;cursor:default}
+.lbnav svg{width:18px;height:18px}
+#lbPrev{left:14px} #lbNext{right:14px}
+
+/* ---------- rehber (kaydırmalı slaytlar) */
+.tour{position:fixed;inset:0;z-index:40;background:var(--overlay);display:grid;place-items:center;padding:24px;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.tcard{position:relative;width:min(980px,100%);height:min(640px,100%);background:var(--card);border-radius:22px;box-shadow:var(--shadow);display:grid;grid-template-rows:1fr auto;overflow:hidden}
+.track{display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain;cursor:grab}
+.track::-webkit-scrollbar{display:none}
+.track.drag{cursor:grabbing;scroll-snap-type:none}
+.slide{flex:0 0 100%;scroll-snap-align:start;display:grid;grid-template-columns:1fr 1.05fr;align-items:center;gap:26px;padding:34px 46px 10px;min-height:0;-webkit-user-select:none;user-select:none}
+.slide.center{grid-template-columns:1fr;justify-items:center;text-align:center}
+.art{display:grid;place-items:center;min-height:0;height:100%}
+.art svg.phone{height:min(470px,100%);width:auto;filter:drop-shadow(0 18px 30px rgba(0,0,0,.22))}
+.txt .kicker{font-size:12.5px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:.6px}
+.txt h2{font-size:28px;line-height:1.15;margin:6px 0 12px;font-weight:700}
+.txt p{color:var(--muted);margin:0 0 14px;font-size:15px}
+.txt ol{margin:0;padding-left:22px;font-size:15px}
+.txt ol li{margin:0 0 9px}
+.txt b{font-weight:600}
+.pill{display:inline-flex;align-items:center;gap:8px;font-size:13px;border-radius:999px;padding:6px 12px;background:var(--seg);margin-top:6px}
+.pill.good{background:rgba(40,167,69,.14);color:var(--green)} .pill.bad{background:rgba(255,149,0,.15);color:var(--orange)}
+.tip{font-size:13.5px!important;color:var(--muted);background:var(--seg);border-radius:10px;padding:9px 12px;margin-top:12px!important;line-height:1.45}
+.kv{border-collapse:collapse;width:100%;font-size:14.5px;margin:4px 0 2px}
+.kv td{padding:8px 10px;border-top:1px solid var(--sep);vertical-align:top}
+.kv tr:first-child td{border-top:0}
+.kv td:first-child{color:var(--muted);white-space:nowrap;width:1%;padding-left:0}
+.dk-bg{fill:#000} .dk-blk{fill:#2c2c2e} .dk-pop{fill:#3a3a3c} .dk-t{fill:#fff;font-family:"Segoe UI",system-ui,sans-serif}
+.dk-m{fill:#8e8e93;font-family:"Segoe UI",system-ui,sans-serif} .dk-b{fill:#4da3ff;font-family:"Segoe UI",system-ui,sans-serif}
+.dk-tok{fill:rgba(10,132,255,.26)} .dk-sel{fill:#0a84ff}
+.hero{position:relative;width:200px;height:200px;display:grid;place-items:center;margin:0 auto 18px}
+.wave{position:absolute;left:50%;top:50%;width:112px;height:112px;margin:-56px 0 0 -56px;border-radius:31%;border:2px solid var(--blue-l);opacity:0;animation:wave 3.6s cubic-bezier(.15,.55,.35,1) infinite}
+.wave:nth-of-type(2){animation-delay:1.2s}.wave:nth-of-type(3){animation-delay:2.4s}
+@keyframes wave{0%{transform:scale(.92);opacity:.5;border-radius:31%}100%{transform:scale(1.85);opacity:0;border-radius:50%}}
+.hero svg{position:relative;width:112px;height:112px;filter:drop-shadow(0 12px 24px rgba(58,123,245,.4))}
+.tqr{display:flex;flex-direction:column;align-items:center;gap:12px}
+.tqr .qr{width:280px;height:280px;box-shadow:0 0 0 1px var(--sep)}
+.tbar{display:flex;align-items:center;gap:12px;padding:14px 22px 18px}
+.dots{flex:1;display:flex;justify-content:center;gap:7px}
+.dots button{width:8px;height:8px;border-radius:50%;border:0;padding:0;background:var(--track);cursor:pointer;transition:width .25s,background .25s}
+.dots button.on{width:22px;border-radius:5px;background:var(--blue)}
+.tbar .btn{min-width:96px;justify-content:center}
+.link{border:0;background:none;color:var(--muted);cursor:pointer;padding:8px 6px;font-size:13px}
+.link:hover{color:var(--text)}
+.tclose{position:absolute;right:14px;top:14px;width:32px;height:32px;border-radius:50%;border:0;background:var(--seg);cursor:pointer;display:grid;place-items:center;z-index:2}
+.tclose svg{width:14px;height:14px}
+
+/* telefon çizimleri */
+.ph-frame{fill:var(--ph-frame)} .ph-screen{fill:var(--ph-screen)} .ph-island{fill:#000}
+.ph-t{fill:var(--ph-ink);font-family:"Segoe UI",system-ui,sans-serif}
+.ph-m{fill:var(--ph-mute);font-family:"Segoe UI",system-ui,sans-serif}
+.ph-row{fill:var(--ph-row)} .ph-sheet{fill:var(--ph-sheet)} .ph-card{fill:var(--ph-card)}
+.ph-blue{fill:var(--blue)} .ph-bt{fill:var(--blue);font-family:"Segoe UI",system-ui,sans-serif}
+.hl{fill:none;stroke:var(--blue);stroke-width:2.5}
+.tap{fill:rgba(58,123,245,.28);transform-box:fill-box;transform-origin:center;animation:tap 1.6s ease-out infinite}
+@keyframes tap{0%{transform:scale(.6);opacity:1}70%{transform:scale(1.25);opacity:0}100%{opacity:0}}
+
+@media (max-width:860px){
+  .app{grid-template-columns:76px 1fr} .brand b,.nav span,.status span,.xfer .xt,.netwarn span,.foot,.nav .badge{display:none}
+  .connect{grid-template-columns:1fr} .slide{grid-template-columns:1fr;padding:24px} .art{display:none}
+}
+</style>
+</head>
+<body>
+<div class="app off" id="app">
+  <aside>
+    <div class="brand"><svg viewBox="0 0 100 100" aria-hidden="true"><use href="#logo"/></svg><b>WinDrop</b></div>
+    <div class="status"><span class="dot"></span><span id="statusText">Bağlanıyor…</span></div>
+    <button class="nav" data-go="gelenler" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.8"/></svg><span>Gelenler</span><em class="badge" id="navCount"></em></button>
+    <button class="nav" data-go="baglan" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15"/><rect x="8" y="8" width="8" height="8" rx="1"/></svg><span>Telefonu bağla</span></button>
+    <button class="nav" id="navTour" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="6.5" y="2.5" width="11" height="19" rx="2.6"/><path d="M10.5 18.5h3" stroke-linecap="round"/><path d="m10 9.5 3 2-3 2z" fill="currentColor"/></svg><span>Kurulum rehberi</span></button>
+    <div class="spacer"></div>
+    <div class="xfer" id="xfer" hidden>
+      <svg viewBox="0 0 44 44"><circle class="tr" cx="22" cy="22" r="18"/><circle class="br" id="xferRing" cx="22" cy="22" r="18"/></svg>
+      <div class="xt"><b id="xferName"></b><span id="xferMeta"></span></div>
+    </div>
+    <button class="netwarn" id="netWarn" type="button" hidden>
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10.3 3.9a2 2 0 0 1 3.4 0l8 13.6A2 2 0 0 1 20 20.5H4a2 2 0 0 1-1.7-3zM12 9a1 1 0 0 0-1 1v4a1 1 0 0 0 2 0v-4a1 1 0 0 0-1-1Zm0 7.2a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4Z"/></svg>
+      <span id="netWarnText">Bu ağ "Genel" olarak ayarlı. Telefon bağlanamayabilir. Ayarları açmak için tıklayın.</span>
+    </button>
+    <div class="foot"><span id="foot"></span><br>Developer <b>Kamer EKENEL</b> · <button class="flink" id="license" type="button">Sözleşme</button></div>
+  </aside>
+
+  <main>
+    <section id="gelenler">
+      <div class="head">
+        <div class="grow"><h1>Gelenler</h1><p id="gSub">iPhone'dan gelen fotoğraf ve videolar</p></div>
+        <div class="seg" id="filter">
+          <button type="button" data-f="all">Tümü</button><button type="button" data-f="image">Fotoğraflar</button><button type="button" data-f="video">Videolar</button>
+        </div>
+        <button class="btn" id="openFolder" type="button"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h4.1c.7 0 1.3.3 1.8.8L12.6 6H18.5A2.5 2.5 0 0 1 21 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/></svg>Klasörü aç</button>
+      </div>
+      <div id="grid"></div>
+      <div class="empty" id="empty" hidden>
+        <svg viewBox="0 0 120 120" aria-hidden="true"><rect x="18" y="26" width="84" height="68" rx="12" fill="var(--thumb)"/><circle cx="44" cy="50" r="8" fill="var(--track)"/><path d="M26 86l22-24 14 15 10-10 22 19z" fill="var(--track)"/></svg>
+        <h2>Henüz dosya gelmedi</h2>
+        <p>iPhone'da bir fotoğraf ya da video seçip <b>Paylaş → WinDrop</b> deyin. Gelen dosyalar burada görünür.</p>
+        <button class="btn primary" type="button" data-go="baglan">Telefonu bağla</button>
+      </div>
+    </section>
+
+    <section id="baglan" hidden>
+      <div class="head"><div class="grow"><h1>Telefonu bağla</h1><p>iPhone ile bu bilgisayar aynı Wi-Fi ağında olmalı.</p></div>
+        <button class="btn primary" type="button" id="openTour2"><svg viewBox="0 0 24 24" fill="currentColor"><path d="m9 7 8 5-8 5z"/></svg>Adım adım rehber</button></div>
+      <div class="connect">
+        <div class="card qrcard">
+          <div class="seg qrmode"><button type="button" data-m="name">Ad ile</button><button type="button" data-m="ip">IP ile</button></div>
+          <div class="qr" data-qr></div>
+          <div class="url" data-url></div>
+        </div>
+        <div>
+          <div class="card">
+            <h3>iPhone'da</h3>
+            <ol class="steps">
+              <li><b>Kamera</b>'yı açıp QR koda tutun, çıkan bağlantıya dokunun. Sayfa Safari'de açılır.</li>
+              <li>Safari'de <b>Paylaş</b> → <b>Ana Ekrana Ekle</b> → <b>Ekle</b>.</li>
+              <li>WinDrop'taki mavi simgeye dokunup fotoğraf seçin; dosya buraya gelir.</li>
+              <li>Fotoğraflar'daki <b>Paylaş</b> menüsünde görünmesi için <b>Adım adım rehber</b>'deki kestirme adımlarını izleyin.</li>
+            </ol>
+            <p style="color:var(--muted);margin:6px 0 0">Sayfa "Ad ile" kodla açılmazsa <b>IP ile</b> kodunu kullanın.</p>
+          </div>
+          <div class="card" style="margin-top:16px">
+            <h3>Kestirme adresi</h3>
+            <code data-addr></code>
+            <p style="color:var(--muted);margin:10px 0 0">Bu adresi iPhone'da WinDrop sayfasındaki <b>Kestirme adresini kopyala</b> düğmesiyle alırsınız.</p>
+          </div>
+          <div class="card" style="margin-top:16px" id="netCard">
+            <h3>Ağ</h3>
+            <div id="netLine">—</div>
+            <div class="row2"><button class="btn" type="button" data-net>Ağ ayarlarını aç</button></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- büyük görüntüleme -->
+<div class="lb" id="lb" hidden>
+  <div class="lbbar">
+    <div class="lt"><b id="lbName"></b><span id="lbMeta"></span></div>
+    <button class="btn" type="button" id="lbOpen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 4h6v6M20 4l-9 9M18 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10"/></svg>Aç</button>
+    <button class="btn" type="button" id="lbReveal"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h4.1c.7 0 1.3.3 1.8.8L12.6 6H18.5A2.5 2.5 0 0 1 21 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/></svg>Klasörde göster</button>
+    <button class="btn" type="button" id="lbClose" aria-label="Kapat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </div>
+  <div class="lbstage">
+    <button class="lbnav" id="lbPrev" type="button" aria-label="Önceki"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <div id="lbStage"></div>
+    <button class="lbnav" id="lbNext" type="button" aria-label="Sonraki"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+  </div>
+</div>
+
+<!-- kurulum rehberi -->
+<div class="tour" id="tour" hidden>
+  <div class="tcard">
+    <button class="tclose" id="tClose" type="button" aria-label="Rehberi kapat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    <div class="track" id="track">
+      <div class="slide center">
+        <div>
+          <div class="hero"><span class="wave"></span><span class="wave"></span><span class="wave"></span><svg viewBox="0 0 100 100"><use href="#logo"/></svg></div>
+          <div class="txt"><div class="kicker">Hoş geldiniz</div><h2>iPhone'dan bu bilgisayara,<br>kablosuz ve tek dokunuşla</h2>
+          <p style="max-width:520px;margin:0 auto">WinDrop, iPhone'daki fotoğraf ve videoları ev ağınız üzerinden bu bilgisayarın İndirilenler klasörüne getirir. Birkaç adımda hazır olacak; slaytları kaydırarak ilerleyin.</p></div>
+        </div>
+      </div>
+      <div class="slide">
+        <div class="art" id="artWifi"></div>
+        <div class="txt"><div class="kicker">Adım 1</div><h2>Aynı Wi-Fi ağı</h2>
+          <p>iPhone ile bu bilgisayar aynı Wi-Fi ağına bağlı olmalı. Misafir ağları ve bazı iş ağları cihazların birbirini görmesini engelleyebilir.</p>
+          <div class="pill" id="tNet">Ağ bilgisi alınıyor…</div>
+          <div class="row2" id="tNetBtn" hidden><button class="btn" type="button" data-net>Ağ ayarlarını aç</button></div>
+        </div>
+      </div>
+      <div class="slide">
+        <div class="art"><div class="tqr"><div class="seg qrmode"><button type="button" data-m="name">Ad ile</button><button type="button" data-m="ip">IP ile</button></div><div class="qr" data-qr></div><div class="url" data-url></div></div></div>
+        <div class="txt"><div class="kicker">Adım 2</div><h2>QR kodu okutun</h2>
+          <ol><li>iPhone'da <b>Kamera</b>'yı açın ve bu QR koda tutun.</li><li>Ekranda çıkan sarı bağlantıya dokunun; WinDrop sayfası <b>Safari</b>'de açılır.</li></ol>
+          <p>Sayfa açılmazsa üstteki <b>IP ile</b> koduna geçip tekrar okutun.</p>
+        </div>
+      </div>
+      <div class="slide">
+        <div class="art" id="artHome"></div>
+        <div class="txt"><div class="kicker">Adım 3</div><h2>Ana ekrana ekleyin</h2>
+          <ol><li>Safari'de alttaki <b>Paylaş</b> düğmesine dokunun.</li><li>Listeyi kaydırıp <b>Ana Ekrana Ekle</b>'yi seçin, sonra <b>Ekle</b>.</li></ol>
+          <p>WinDrop artık bir uygulama gibi ana ekranınızda.</p>
+        </div>
+      </div>
+      <div class="slide">
+        <div class="art" id="artSend"></div>
+        <div class="txt"><div class="kicker">Adım 4</div><h2>İlk fotoğrafı gönderin</h2>
+          <ol><li>Ana ekrandan WinDrop'u açın.</li><li>Ortadaki <b>mavi simgeye</b> dokunun ve bir fotoğraf seçin.</li></ol>
+          <div class="pill" id="tFirst">Bilgisayar bekliyor…</div>
+        </div>
+      </div>
+      <div class="slide">
+        <div class="art" id="artK1"></div>
+        <div class="txt"><div class="kicker">Paylaş menüsü · 1/7</div><h2>Kestirme adresini kopyalayın</h2>
+          <p>WinDrop'un Fotoğraflar'daki Paylaş menüsünde çıkması için iPhone'da bir kez küçük bir kestirme kuracağız. İlk iş, adresi kopyalamak.</p>
+          <ol><li>Ana ekrandaki <b>WinDrop</b>'u açın.</li>
+            <li>En alttaki <b>Kestirme adresini kopyala</b>'ya dokunun. <b>Kopyalandı ✓</b> yazısını görmelisiniz.</li></ol>
+        </div>
+      </div>
+      <div class="slide">
+        <div class="art" id="artK2"></div>
+        <div class="txt"><div class="kicker">Paylaş menüsü · 2/7</div><h2>Yeni bir kestirme açın</h2>
+          <ol><li><b>Kestirmeler</b> uygulamasını açın ve en alttaki <b>+</b> düğmesine dokunun.</li>
+            <li>Üstteki <b>Yeni Kestirme ⌄</b> yazısına dokunun, <b>Yeniden Adlandır</b>'ı seçip <b>WinDrop</b> yazın.</li></ol>
+          <p class="tip">iOS 27'de bir kestirmeyi açınca "Bir değişikliği betimleyin" yazan Apple Intelligence ekranı gelebilir. Bu durumda sağ üstteki <b>Düzenle</b>'ye dokunun.</p>
+        </div>
+      </div>
+      <div class="slide">
+        <div class="art" id="artK3"></div>
+        <div class="txt"><div class="kicker">Paylaş menüsü · 3/7</div><h2>Döngüyü ekleyin</h2>
+          <ol><li>Alttaki <b>Arayın</b> kutusuna <b>yinele</b> yazın ve <b>Her Biri ile Yinele</b>'ye dokunun.</li>
+            <li>Eklenen bloktaki soluk mavi <b>Öğeler</b> yazısına dokunun ve listeden <b>Kestirme Girişi</b>'ni seçin.</li></ol>
+          <p class="tip">Blok şöyle okunmalı: "<b>Kestirme Girişi</b> girişinde her öğeyle yinele".</p>
+        </div>
+      </div>
+      <div class="slide">
+        <div class="art" id="artK4"></div>
+        <div class="txt"><div class="kicker">Paylaş menüsü · 4/7</div><h2>Gönderme adımını ekleyin</h2>
+          <ol><li><b>Arayın</b> kutusuna <b>URL içeriğini</b> yazın ve <b>URL İçeriğini Al</b>'a dokunun.</li>
+            <li>Yeni blok en alta eklenir. Basılı tutup <b>Yinelemeyi Bitir</b>'in hemen <b>üstüne</b> sürükleyin.</li>
+            <li>Bloktaki mavi <b>URL</b> yazısına dokunun ve kopyaladığınız adresi <b>yapıştırın</b>.</li></ol>
+          <p class="tip">Adres: <code data-addr></code></p>
+        </div>
+      </div>
+      <div class="slide">
+        <div class="art" id="artK5"></div>
+        <div class="txt"><div class="kicker">Paylaş menüsü · 5/7</div><h2>Gönderme ayarlarını yapın</h2>
+          <p>URL bloğundaki <b>›</b> okuna dokunun, açılan dört ayarı şöyle yapın:</p>
+          <table class="kv">
+            <tr><td>Yöntem</td><td><b>POST</b></td></tr>
+            <tr><td>Başlıklar</td><td><b>yeni başlık Ekle</b>'ye dokunun. Satırda iki kutu çıkar:<br>soldaki <b>Anahtar</b> kutusuna <code>filename</code> yazın,<br>sağdaki <b>Metin</b> kutusuna <b>Yineleme Öğesi</b>'ni seçin.</td></tr>
+            <tr><td>İstek Gövdesi</td><td><b>Dosya</b></td></tr>
+            <tr><td>Dosya</td><td><b>Yineleme Öğesi</b></td></tr>
+          </table>
+          <p class="tip"><b>Yineleme Öğesi</b> bir değişkendir: Kutuya dokununca klavyenin üstünde çıkan listeden seçin, elle yazmayın. Gönderirken "Ağ bağlantısı kesildi" uyarısı çıkarsa genellikle <b>Anahtar</b> kutusu boş kalmıştır.</p>
+        </div>
+      </div>
+      <div class="slide">
+        <div class="art" id="artK6"></div>
+        <div class="txt"><div class="kicker">Paylaş menüsü · 6/7</div><h2>Paylaş menüsünde gösterin</h2>
+          <ol><li>Ekranın altındaki <b>ⓘ</b> düğmesine dokunun, <b>Paylaşma Sayfasında Göster</b>'i açın ve <b>Bitti</b>'ye dokunun.</li>
+            <li>En üstteki "<b>Paylaşma Sayfası giriş yüzeyinden … girişini al</b>" satırında mavi tür yazısına (ör. <b>Uygulamalar ve 18 tane daha</b>) dokunun ve yalnızca <b>Görüntüler</b> ile <b>Ortam</b>'ı seçili bırakın.</li></ol>
+          <p class="tip">Bu satır, döngüde <b>Kestirme Girişi</b>'ni seçtiğinizde kendiliğinden eklenir; ayarı açınca yeni bir satır belirmez. Türleri daraltmak isteğe bağlıdır ama WinDrop'un yalnızca fotoğraf ve video paylaşırken listede çıkmasını sağlar.</p>
+        </div>
+      </div>
+      <div class="slide">
+        <div class="art" id="artK7"></div>
+        <div class="txt"><div class="kicker">Paylaş menüsü · 7/7</div><h2>Büyük dosyalara izin verin</h2>
+          <ol><li>iPhone'da <b>Ayarlar</b> → <b>Uygulamalar</b> → <b>Kestirmeler</b> → <b>Gelişmiş</b>'e gidin.</li>
+            <li><b>Büyük Miktarda Veri Paylaşımına İzin Ver</b>'i açın. Böylece büyük videolar da gönderilebilir.</li></ol>
+          <p class="tip">İsteğe bağlı (iOS 27): Aynı Kestirmeler ayarlarında, kestirmelerin Apple Intelligence ekranı yerine doğrudan düzenleyicide açılmasını seçebilirsiniz.</p>
+        </div>
+      </div>
+      <div class="slide">
+        <div class="art" id="artShare"></div>
+        <div class="txt"><div class="kicker">Kullanım</div><h2>Fotoğraflar'dan paylaşın</h2>
+          <ol><li>Fotoğraflar'da dosyaları seçip <b>Paylaş</b>'a dokunun.</li><li>Menüyü yukarı kaydırın; alttaki listede <b>WinDrop</b>'a dokunun. İzin sorarsa <b>Her Zaman İzin Ver</b>.</li>
+            <li>Kalite düşmesin: üstteki <b>Seçenekler</b> → <b>Biçim</b> → <b>Şu Anki</b>.</li></ol>
+          <p>WinDrop, AirDrop'un olduğu üst sırada çıkmaz; alttaki dikey listededir.</p>
+        </div>
+      </div>
+      <div class="slide center">
+        <div>
+          <svg viewBox="0 0 120 120" width="120" height="120" aria-hidden="true" style="margin-bottom:14px"><circle cx="60" cy="60" r="54" fill="var(--green)" opacity=".15"/><circle cx="60" cy="60" r="40" fill="var(--green)"/><path d="M42 61l12 12 24-26" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div class="txt"><div class="kicker">Hazır</div><h2>Hepsi bu kadar</h2>
+          <p style="max-width:500px;margin:0 auto 18px">Gönderdiğiniz fotoğraf ve videolar <b>Gelenler</b> bölümünde görünür ve İndirilenler klasörüne kaydedilir. Bu rehbere sol menüdeki <b>Kurulum rehberi</b>'nden tekrar ulaşabilirsiniz.</p></div>
+        </div>
+      </div>
+    </div>
+    <div class="tbar">
+      <button class="link" id="tSkip" type="button">Atla</button>
+      <div class="dots" id="dots"></div>
+      <button class="btn" id="tPrev" type="button">Geri</button>
+      <button class="btn primary" id="tNext" type="button">İleri</button>
+    </div>
+  </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5095FB"/><stop offset="1" stop-color="#3A7BF5"/></linearGradient>
+    <symbol id="logo" viewBox="0 0 100 100">
+      <rect width="100" height="100" rx="22.5" fill="url(#lg)"/>
+      <g fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"><path d="M38.75 66.9A17.5 17.5 0 1 1 61.25 66.9"/><path d="M32.32 74.57A27.5 27.5 0 1 1 67.68 74.57"/><path d="M25.9 82.23A37.5 37.5 0 1 1 74.1 82.23"/></g>
+      <circle cx="50" cy="53.5" r="6.8" fill="#fff"/>
+    </symbol>
+  </defs>
+</svg>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  const inApp = !!(window.chrome && window.chrome.webview);
+  const nf = new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 1 });
+  const fmtSize = (n) => { const u = ['bayt', 'KB', 'MB', 'GB', 'TB']; let i = 0, v = n || 0; while (v >= 1024 && i < 4) { v /= 1024; i++; } return (i ? nf.format(v) : Math.round(v)) + ' ' + u[i]; };
+  const timeF = new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit' });
+  const dayF = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' });
+  const fullF = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  function dayLabel(t) {
+    const d = new Date(t), now = new Date(), y = new Date(); y.setDate(now.getDate() - 1);
+    if (d.toDateString() === now.toDateString()) return 'Bugün';
+    if (d.toDateString() === y.toDateString()) return 'Dün';
+    return dayF.format(d);
+  }
+  const KIND = {
+    image: '<svg class="kind" viewBox="0 0 24 24" fill="currentColor"><path d="M5.5 4h13A2.5 2.5 0 0 1 21 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5v-11A2.5 2.5 0 0 1 5.5 4Zm.5 13h12l-3.8-5.1-3 3.8-2.1-2.5Zm3-7.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/></svg>',
+    video: '<svg class="kind" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 6h9A2.5 2.5 0 0 1 16 8.5v7a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 2 15.5v-7A2.5 2.5 0 0 1 4.5 6Zm12.5 4 4.2-2.6c.4-.3.8 0 .8.4v8.4c0 .4-.4.7-.8.4L17 14Z"/></svg>',
+    other: '<svg class="kind" viewBox="0 0 24 24" fill="currentColor"><path d="M7 3h6.6c.5 0 .9.2 1.2.5l3.7 3.7c.3.3.5.8.5 1.2V19a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm6 1.5V8a1 1 0 0 0 1 1h3.5Z"/></svg>',
+  };
+  const PLAY = '<svg viewBox="0 0 10 12"><path d="M0 0l10 6-10 6z"/></svg>';
+
+  let state = null, items = [], filter = 'all', qrMode = 'name', gallerySig = '', itemsKey = '', tourAt = 0, tourAuto = false;
+  try { qrMode = localStorage.getItem('windrop.qr') === 'ip' ? 'ip' : 'name'; filter = localStorage.getItem('windrop.filter') || 'all'; } catch (e) {}
+
+  function post(url, body) {
+    return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WinDrop': '1' }, body: JSON.stringify(body || {}) }).catch(() => {});
+  }
+  const isWeb = (it) => /^(jpe?g|png|gif|webp|avif|bmp)$/.test(it.ext);
+  function thumbUrl(it, size) {
+    if (inApp) return 'http://windrop-thumb/?s=' + size + '&t=' + it.time + '&p=' + encodeURIComponent(it.path);
+    return isWeb(it) ? '/api/file?rid=' + it.rid : null;
+  }
+
+  // ------------------------------------------------------------ bölümler
+  function show(id) {
+    $$('main > section').forEach((s) => { s.hidden = s.id !== id; });
+    $$('.nav[data-go]').forEach((b) => b.classList.toggle('on', b.dataset.go === id));
+    $('main').scrollTop = 0;
+  }
+  function route() {
+    const h = decodeURIComponent(location.hash.slice(1));
+    if (h.startsWith('rehber')) { openTour((Number(h.split('=')[1]) || 1) - 1); return; }
+    show(h === 'baglan' ? 'baglan' : 'gelenler');
+    if (/^gelenler\/\d+$/.test(h)) { hashLbDone = false; openFromHash(filtered()); }
+  }
+  $$('[data-go]').forEach((b) => b.addEventListener('click', () => { location.hash = b.dataset.go; }));
+  window.addEventListener('hashchange', route);
+  $('#navTour').addEventListener('click', () => openTour(0));
+  $('#openTour2').addEventListener('click', () => openTour(0));
+  $('#openFolder').addEventListener('click', () => post('/api/open-folder'));
+  $('#license').addEventListener('click', () => post('/api/open-license'));
+  $$('[data-net]').forEach((b) => b.addEventListener('click', openNet));
+  $('#netWarn').addEventListener('click', openNet);
+  function openNet() { post('/api/open-network', { wifi: !(state && state.network && state.network.wifi === false) }); }
+
+  // ------------------------------------------------------------ QR / ağ
+  function setQrMode(m) {
+    qrMode = m;
+    try { localStorage.setItem('windrop.qr', m); } catch (e) {}
+    $$('.qrmode button').forEach((b) => b.classList.toggle('on', b.dataset.m === m));
+    renderQr(true);
+  }
+  $$('.qrmode button').forEach((b) => b.addEventListener('click', () => setQrMode(b.dataset.m)));
+  let lastQr = '';
+  function renderQr(force) {
+    if (!state) return;
+    const url = qrMode === 'ip' ? state.urls.ip : state.urls.name;
+    const svg = qrMode === 'ip' ? state.qr.ip : state.qr.name;
+    const key = qrMode + '|' + url;
+    if (key === lastQr && !force) return;
+    lastQr = key;
+    $$('[data-qr]').forEach((q) => {
+      if (svg) { q.className = 'qr'; q.innerHTML = svg; } else { q.className = 'qr empty'; q.textContent = 'Yerel ağ adresi bulunamadı. Wi-Fi bağlı mı?'; }
+    });
+    $$('[data-url]').forEach((e) => { e.textContent = url || ''; });
+    $$('[data-addr]').forEach((e) => { e.textContent = url ? url + 'api/raw' : ''; });
+  }
+  function netText(n) {
+    if (!n) return { text: 'Bu bilgisayar yerel bir ağa bağlı görünmüyor.', cls: 'bad' };
+    const name = n.name || n.alias;
+    if (n.category === 'Public') return { text: '"' + name + '" ağı Windows\'ta Genel olarak ayarlı. Ev ağınızsa Özel yapın.', cls: 'bad' };
+    if (n.category) return { text: 'Bağlı ağ: "' + name + '" (' + (n.category === 'Private' ? 'Özel' : 'Etki alanı') + ') ✓', cls: 'good' };
+    return { text: 'Bağlı ağ: ' + name, cls: '' };
+  }
+
+  // ------------------------------------------------------------ durum
+  const XC = 2 * Math.PI * 18;
+  $('#xferRing').style.strokeDasharray = XC.toFixed(2);
+  function render(s) {
+    const app = $('#app');
+    app.classList.remove('off');
+    renderQr(false);
+    const act = s.active || [];
+    if (act.length) {
+      app.classList.add('receiving');
+      const known = act.filter((a) => a.size);
+      const total = known.reduce((x, a) => x + a.size, 0);
+      const got = known.reduce((x, a) => x + Math.min(a.size, a.received), 0);
+      const frac = total ? got / total : 0;
+      const rate = act.reduce((x, a) => x + (a.rate || 0), 0);
+      $('#xfer').hidden = false;
+      $('#xferRing').style.strokeDashoffset = (XC * (1 - frac)).toFixed(2);
+      $('#xferName').textContent = act[0].name;
+      $('#xferMeta').textContent = (total ? '%' + Math.floor(frac * 100) : fmtSize(act[0].received)) + (rate > 0 ? ' · ' + fmtSize(rate) + '/sn' : '') + (act.every((a) => a.stalled) ? ' · bekleniyor' : '');
+      $('#statusText').textContent = 'Alınıyor…';
+    } else {
+      app.classList.remove('receiving');
+      $('#xfer').hidden = true;
+      $('#statusText').textContent = s.lastReceivedAt && Date.now() - s.lastReceivedAt < 20000 ? 'Yeni dosya geldi ✓' : 'Hazır · telefon bekleniyor';
+    }
+    const nt = netText(s.network);
+    $('#netWarn').hidden = !(s.network && s.network.category === 'Public');
+    $('#netLine').textContent = nt.text;
+    $('#netLine').className = nt.cls === 'good' ? 'ok' : nt.cls === 'bad' ? 'warn' : '';
+    const tn = $('#tNet');
+    tn.textContent = nt.text;
+    tn.className = 'pill ' + nt.cls;
+    $('#tNetBtn').hidden = nt.cls !== 'bad';
+    $('#navCount').textContent = s.total ? String(s.total) : '';
+    $('#foot').textContent = 'WinDrop ' + (s.version || '') + ' · ' + s.hostname;
+    // rehber: ilk dosya
+    if (tourAt && s.lastReceivedAt > tourAt && s.recent && s.recent[0]) {
+      const f = $('#tFirst');
+      f.className = 'pill good';
+      f.textContent = '✓ Geldi: ' + s.recent[0].savedAs;
+    }
+    const key = s.total + '|' + s.lastReceivedAt + '|' + (s.recent || []).map((r) => r.exists ? 1 : 0).join('');
+    if (key !== itemsKey) { itemsKey = key; loadItems(); }
+    if (!s.onboarded && !tourAuto && $('#tour').hidden && !location.hash.startsWith('#rehber')) { tourAuto = true; openTour(0); }
+  }
+
+  async function tick() {
+    try {
+      const r = await fetch('/api/state', { cache: 'no-store' });
+      if (!r.ok) throw new Error(r.status);
+      state = await r.json();
+      render(state);
+    } catch (e) {
+      $('#app').classList.add('off');
+      $('#statusText').textContent = 'WinDrop sunucusu kapalı';
+    }
+  }
+
+  // ------------------------------------------------------------ galeri
+  async function loadItems() {
+    try {
+      const r = await fetch('/api/received?limit=1000', { cache: 'no-store' });
+      items = (await r.json()).items || [];
+      renderGallery();
+    } catch (e) {}
+  }
+  function setFilter(f) {
+    filter = f;
+    try { localStorage.setItem('windrop.filter', f); } catch (e) {}
+    $$('#filter button').forEach((b) => b.classList.toggle('on', b.dataset.f === f));
+    renderGallery();
+  }
+  $$('#filter button').forEach((b) => b.addEventListener('click', () => setFilter(b.dataset.f)));
+  function filtered() { return items.filter((it) => filter === 'all' || it.kind === filter); }
+  function renderGallery() {
+    $$('#filter button').forEach((b) => b.classList.toggle('on', b.dataset.f === filter));
+    const list = filtered();
+    const sig = filter + '|' + list.map((it) => it.rid + (it.exists ? 1 : 0)).join(',');
+    const imgs = items.filter((i) => i.kind === 'image').length, vids = items.filter((i) => i.kind === 'video').length;
+    $('#gSub').textContent = items.length ? (imgs + ' fotoğraf, ' + vids + ' video' + (items.length - imgs - vids ? ', ' + (items.length - imgs - vids) + ' diğer' : '') + (state ? ' · ' + state.destLabel : '')) : 'iPhone\'dan gelen fotoğraf ve videolar';
+    if (sig === gallerySig) return openFromHash(list);
+    gallerySig = sig;
+    const box = $('#grid');
+    box.textContent = '';
+    $('#empty').hidden = list.length > 0;
+    let day = null, grid = null;
+    list.forEach((it, idx) => {
+      const d = dayLabel(it.time);
+      if (d !== day) {
+        day = d;
+        const h = document.createElement('h3'); h.className = 'day'; h.textContent = d; box.appendChild(h);
+        grid = document.createElement('div'); grid.className = 'tiles'; box.appendChild(grid);
+      }
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'tile' + (it.exists ? '' : ' gone');
+      const th = document.createElement('div');
+      th.className = 'thumb';
+      const url = it.exists ? thumbUrl(it, 320) : null;
+      const noImg = () => { th.classList.add('noimg'); th.insertAdjacentHTML('afterbegin', KIND[it.kind] || KIND.other); };
+      if (url) {
+        const img = document.createElement('img');
+        img.loading = 'lazy'; img.decoding = 'async'; img.alt = ''; img.draggable = false;
+        img.onerror = () => { img.remove(); noImg(); };
+        img.src = url;
+        th.appendChild(img);
+      } else noImg();
+      if (it.kind === 'video') th.insertAdjacentHTML('beforeend', '<span class="vbadge">' + PLAY + '</span>');
+      if (!it.exists) th.insertAdjacentHTML('beforeend', '<span class="gonebadge">Taşınmış</span>');
+      const n = document.createElement('div'); n.className = 'tname'; n.textContent = it.savedAs;
+      const m = document.createElement('div'); m.className = 'tmeta'; m.textContent = fmtSize(it.size) + ' · ' + timeF.format(new Date(it.time));
+      b.append(th, n, m);
+      b.title = it.savedAs;
+      b.addEventListener('click', () => openLb(list, idx));
+      b.addEventListener('dblclick', () => { if (it.exists) post('/api/open', { rid: it.rid }); });
+      grid.appendChild(b);
+    });
+    openFromHash(list);
+  }
+  let hashLbDone = false;
+  function openFromHash(list) {
+    const m = /^#gelenler\/(\d+)$/.exec(location.hash);
+    if (!m || hashLbDone || !list[+m[1]]) return;
+    hashLbDone = true;
+    openLb(list, +m[1]);
+  }
+
+  // ------------------------------------------------------------ büyük görüntüleme
+  let lbList = [], lbIdx = 0;
+  function openLb(list, idx) { lbList = list; lbIdx = idx; $('#lb').hidden = false; renderLb(); }
+  function closeLb() { $('#lb').hidden = true; $('#lbStage').textContent = ''; }
+  function lbMsg(stage, it, text) {
+    stage.innerHTML = '<div class="lbmsg">' + (KIND[it.kind] || KIND.other) + '<p></p></div>';
+    stage.querySelector('p').textContent = text;
+  }
+  function renderLb() {
+    const it = lbList[lbIdx];
+    if (!it) return closeLb();
+    const stage = $('#lbStage');
+    stage.textContent = '';
+    $('#lbName').textContent = it.savedAs;
+    $('#lbMeta').textContent = fmtSize(it.size) + ' · ' + fullF.format(new Date(it.time)) + ' · ' + (it.via === 'kestirme' ? 'Paylaş menüsünden' : 'WinDrop sayfasından');
+    $('#lbOpen').disabled = $('#lbReveal').disabled = !it.exists;
+    $('#lbPrev').disabled = lbIdx <= 0;
+    $('#lbNext').disabled = lbIdx >= lbList.length - 1;
+    if (!it.exists) return lbMsg(stage, it, 'Bu dosya taşınmış ya da silinmiş.');
+    if (it.kind === 'video') {
+      const v = document.createElement('video');
+      v.controls = true; v.autoplay = true; v.playsInline = true; v.preload = 'metadata';
+      const poster = thumbUrl(it, 1280);
+      if (poster) v.poster = poster;
+      v.onerror = () => {
+        stage.textContent = '';
+        if (poster) { const img = new Image(); img.src = poster; img.onerror = () => lbMsg(stage, it, 'Bu video burada oynatılamıyor. "Aç" ile varsayılan oynatıcıda açın.'); stage.appendChild(img); }
+        else lbMsg(stage, it, 'Bu video burada oynatılamıyor. "Aç" ile varsayılan oynatıcıda açın.');
+      };
+      v.src = '/api/file?rid=' + it.rid;
+      stage.appendChild(v);
+    } else if (it.kind === 'image') {
+      const src = isWeb(it) ? '/api/file?rid=' + it.rid : thumbUrl(it, 1600);
+      if (!src) return lbMsg(stage, it, 'Bu fotoğrafın önizlemesi WinDrop uygulamasında görünür. "Aç" ile açabilirsiniz.');
+      const img = new Image();
+      img.alt = it.savedAs;
+      img.onerror = () => lbMsg(stage, it, 'Önizleme gösterilemiyor. "Aç" ile varsayılan programda açın.');
+      img.src = src;
+      stage.appendChild(img);
+    } else lbMsg(stage, it, 'Bu dosya türü için önizleme yok.');
+  }
+  $('#lbClose').addEventListener('click', closeLb);
+  $('#lbPrev').addEventListener('click', () => { if (lbIdx > 0) { lbIdx--; renderLb(); } });
+  $('#lbNext').addEventListener('click', () => { if (lbIdx < lbList.length - 1) { lbIdx++; renderLb(); } });
+  $('#lbOpen').addEventListener('click', () => { const it = lbList[lbIdx]; if (it) post('/api/open', { rid: it.rid }); });
+  $('#lbReveal').addEventListener('click', () => { const it = lbList[lbIdx]; if (it) post('/api/reveal', { rid: it.rid }); });
+  $('#lb').addEventListener('click', (e) => { if (e.target.id === 'lb' || e.target.classList.contains('lbstage')) closeLb(); });
+
+  // ------------------------------------------------------------ rehber
+  const tour = $('#tour'), track = $('#track');
+  const slides = $$('.slide', track);
+  let tIdx = 0;
+  slides.forEach((_, i) => {
+    const d = document.createElement('button');
+    d.type = 'button';
+    d.setAttribute('aria-label', 'Slayt ' + (i + 1));
+    d.addEventListener('click', () => goSlide(i));
+    $('#dots').appendChild(d);
+  });
+  function updateDots() {
+    $$('#dots button').forEach((d, i) => d.classList.toggle('on', i === tIdx));
+    $('#tPrev').disabled = tIdx === 0;
+    $('#tPrev').style.visibility = tIdx === 0 ? 'hidden' : 'visible';
+    $('#tNext').textContent = tIdx === slides.length - 1 ? 'Başla' : (tIdx === 0 ? 'Başlayalım' : 'İleri');
+    $('#tSkip').style.visibility = tIdx === slides.length - 1 ? 'hidden' : 'visible';
+  }
+  function goSlide(i, smooth) {
+    tIdx = Math.max(0, Math.min(slides.length - 1, i));
+    track.scrollTo({ left: tIdx * track.clientWidth, behavior: smooth === false ? 'auto' : 'smooth' });
+    updateDots();
+  }
+  function openTour(i) {
+    tour.hidden = false;
+    if (!tourAt) tourAt = Date.now();
+    requestAnimationFrame(() => goSlide(i || 0, false));
+  }
+  function closeTour() {
+    tour.hidden = true;
+    post('/api/onboarded', { value: true });
+    if (state) state.onboarded = true;
+    if (location.hash.startsWith('#rehber')) history.replaceState(null, '', '#gelenler');
+  }
+  $('#tNext').addEventListener('click', () => { if (tIdx >= slides.length - 1) closeTour(); else goSlide(tIdx + 1); });
+  $('#tPrev').addEventListener('click', () => goSlide(tIdx - 1));
+  $('#tSkip').addEventListener('click', closeTour);
+  $('#tClose').addEventListener('click', closeTour);
+  let scrollT = null;
+  track.addEventListener('scroll', () => {
+    clearTimeout(scrollT);
+    scrollT = setTimeout(() => { const i = Math.round(track.scrollLeft / track.clientWidth); if (i !== tIdx) { tIdx = i; updateDots(); } }, 60);
+  }, { passive: true });
+  // fare ile sürükleyerek kaydırma
+  let drag = null;
+  track.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'mouse' || e.button !== 0 || e.target.closest('button,a,input,code,.qr')) return;
+    drag = { x: e.clientX, left: track.scrollLeft, moved: false };
+    track.setPointerCapture(e.pointerId);
+  });
+  track.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x;
+    if (Math.abs(dx) > 4) { drag.moved = true; track.classList.add('drag'); }
+    if (drag.moved) track.scrollLeft = drag.left - dx;
+  });
+  const endDrag = (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x;
+    const moved = drag.moved;
+    drag = null;
+    track.classList.remove('drag');
+    if (!moved) return;
+    goSlide(Math.abs(dx) > 60 ? tIdx + (dx < 0 ? 1 : -1) : tIdx);
+  };
+  track.addEventListener('pointerup', endDrag);
+  track.addEventListener('pointercancel', endDrag);
+  // dikey fare tekerleği de slayt değiştirir
+  let wheelAt = 0;
+  track.addEventListener('wheel', (e) => {
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+    e.preventDefault();
+    if (Date.now() - wheelAt < 550) return;
+    wheelAt = Date.now();
+    goSlide(tIdx + (e.deltaY > 0 ? 1 : -1));
+  }, { passive: false });
+  window.addEventListener('resize', () => { if (!tour.hidden) goSlide(tIdx, false); });
+  document.addEventListener('keydown', (e) => {
+    if (!$('#lb').hidden) {
+      if (e.key === 'Escape') closeLb();
+      else if (e.key === 'ArrowLeft') $('#lbPrev').click();
+      else if (e.key === 'ArrowRight') $('#lbNext').click();
+      return;
+    }
+    if (!tour.hidden) {
+      if (e.key === 'ArrowRight') goSlide(tIdx + 1);
+      else if (e.key === 'ArrowLeft') goSlide(tIdx - 1);
+      else if (e.key === 'Escape') closeTour();
+    }
+  });
+
+  // ------------------------------------------------------------ telefon çizimleri
+  let phoneN = 0;
+  function phone(inner, dark) {
+    const id = 'scr' + (++phoneN);
+    return '<svg class="phone" viewBox="0 0 260 520" aria-hidden="true"><defs><clipPath id="' + id + '"><rect width="234" height="494" rx="36"/></clipPath></defs>' +
+      '<rect x="4" y="4" width="252" height="512" rx="44" class="ph-frame"/><rect x="13" y="13" width="234" height="494" rx="36" class="' + (dark ? 'dk-bg' : 'ph-screen') + '"/>' +
+      '<g transform="translate(13 13)" clip-path="url(#' + id + ')">' + inner + '</g><rect x="98" y="24" width="64" height="19" rx="9.5" class="ph-island"/></svg>';
+  }
+  const T = (x, y, s, cls, txt, extra) => '<text x="' + x + '" y="' + y + '" font-size="' + s + '" class="' + cls + '"' + (extra || '') + '>' + txt + '</text>';
+  const logo = (x, y, s) => '<svg x="' + x + '" y="' + y + '" width="' + s + '" height="' + s + '" viewBox="0 0 100 100"><use href="#logo"/></svg>';
+  const tap = (x, y, r) => '<circle cx="' + x + '" cy="' + y + '" r="' + (r || 18) + '" class="tap"/>';
+  function sheetRow(y, label, hl, blueIcon) {
+    return '<rect x="14" y="' + y + '" width="206" height="36" rx="9" class="ph-card"/>' + T(28, y + 23, 13, 'ph-t', label) +
+      '<rect x="190" y="' + (y + 9) + '" width="18" height="18" rx="4.5" class="' + (blueIcon ? 'ph-blue' : 'ph-row') + '"/>' +
+      (hl ? '<rect x="11" y="' + (y - 3) + '" width="212" height="42" rx="11" class="hl"/>' : '');
+  }
+  function artWifi() {
+    return '<svg viewBox="0 0 420 300" width="100%" style="max-width:440px" aria-hidden="true">' +
+      '<rect x="40" y="70" width="210" height="140" rx="12" class="ph-frame"/><rect x="50" y="80" width="190" height="120" rx="6" class="ph-screen"/>' +
+      '<rect x="20" y="210" width="250" height="14" rx="7" class="ph-frame"/>' + logo(120, 108, 50) +
+      '<rect x="300" y="100" width="80" height="160" rx="16" class="ph-frame"/><rect x="305" y="105" width="70" height="150" rx="12" class="ph-screen"/>' + logo(322, 155, 36) +
+      '<g fill="none" stroke="var(--blue)" stroke-width="7" stroke-linecap="round"><path d="M240 40a60 60 0 0 1 76 0"/><path d="M252 56a40 40 0 0 1 52 0"/></g><circle cx="278" cy="76" r="7" fill="var(--blue)"/></svg>';
+  }
+  function artHome() {
+    let s = logo(87, 70, 60) + T(117, 152, 15, 'ph-t', 'WinDrop', ' text-anchor="middle" font-weight="600"') +
+      '<rect y="214" width="234" height="280" rx="22" class="ph-sheet"/>' + '<rect x="98" y="222" width="38" height="5" rx="2.5" class="ph-row" style="fill:var(--ph-mute);opacity:.5"/>';
+    s += sheetRow(240, 'Kopyala') + sheetRow(282, 'Yer İmi Ekle') + sheetRow(324, 'Ana Ekrana Ekle', true, true) + sheetRow(366, 'Sayfada Bul');
+    return phone(s + tap(200, 342));
+  }
+  function artSend() {
+    let s = '';
+    s += '<g fill="none" stroke="var(--blue-l)" stroke-width="2" opacity=".35"><rect x="54" y="92" width="126" height="126" rx="40"/><rect x="38" y="76" width="158" height="158" rx="56" opacity=".5"/></g>';
+    s += logo(77, 115, 80) + T(117, 262, 22, 'ph-t', 'WinDrop', ' text-anchor="middle" font-weight="700"');
+    s += '<circle cx="74" cy="282" r="4" fill="var(--green)"/>' + T(84, 286, 11.5, 'ph-m', 'Bilgisayara bağlı');
+    s += '<rect x="14" y="320" width="206" height="44" rx="10" class="ph-row"/><rect x="26" y="331" width="22" height="22" rx="5" class="ph-blue"/>' + T(58, 347, 13, 'ph-t', "Dosyalar'dan seç");
+    return phone(s + tap(117, 155, 30));
+  }
+  // --- iOS 27 Kestirmeler (koyu) çizimleri
+  const R = (x, y, w, h, rx, cls, extra) => '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="' + rx + '" class="' + cls + '"' + (extra || '') + '/>';
+  const HL = (x, y, w, h, rx) => '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="' + (rx || 12) + '" class="hl"/>';
+  const twid = (t, s) => t.length * s * 0.56;
+  // mavi değişken etiketi; genişliği döndürür
+  function token(x, y, t, s) {
+    const w = twid(t, s) + 12;
+    return { svg: R(x, y - s - 3, w, s + 9, 6, 'dk-tok') + T(x + 6, y, s, 'dk-b', t), w: w };
+  }
+  function edTop(title) {
+    return '<circle cx="30" cy="54" r="15" class="dk-blk"/><path d="M33 47l-7 7 7 7" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>' +
+      T(117, 59, 14, 'dk-t', title, ' text-anchor="middle" font-weight="600"') +
+      '<circle cx="204" cy="54" r="15" class="dk-blk"/><circle cx="204" cy="54" r="6" fill="none" stroke="#fff" stroke-width="1.6"/>';
+  }
+  const loopIcon = (x, y) => R(x, y, 18, 18, 5, '', ' fill="#8e8e93"') + '<path d="M' + (x + 5) + ' ' + (y + 7) + 'h7l-2-2M' + (x + 13) + ' ' + (y + 11) + 'h-7l2 2" fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>';
+  const webIcon = (x, y) => R(x, y, 18, 18, 5, '', ' fill="#0a84ff"') + '<circle cx="' + (x + 9) + '" cy="' + (y + 9) + '" r="5" fill="none" stroke="#fff" stroke-width="1.3"/><path d="M' + (x + 4) + ' ' + (y + 9) + 'h10" stroke="#fff" stroke-width="1.2"/>';
+  function searchSheet(text) {
+    return R(0, 420, 234, 80, 24, 'dk-blk') + R(16, 434, 202, 32, 16, 'dk-pop') +
+      '<circle cx="34" cy="449" r="5" fill="none" stroke="#8e8e93" stroke-width="1.6"/>' + T(46, 454, 12.5, text ? 'dk-t' : 'dk-m', text || 'Arayın');
+  }
+  function loopBlocks(y, inputTok, inner) {
+    let s = R(10, y, 214, 58, 18, 'dk-blk') + loopIcon(20, y + 12);
+    const t = token(44, y + 26, inputTok, 12);
+    s += t.svg + T(20, y + 47, 12, 'dk-t', 'girişinde her öğeyle yinele');
+    s += inner || '';
+    const endY = y + 66 + (inner ? 64 : 0);
+    s += R(10, endY, 214, 40, 18, 'dk-blk') + loopIcon(20, endY + 11) + T(46, endY + 25, 12.5, 'dk-t', 'Yinelemeyi Bitir');
+    return s;
+  }
+  function artK1() {
+    let s = logo(87, 62, 60) + T(117, 148, 18, 'dk-t', 'WinDrop', ' text-anchor="middle" font-weight="700"');
+    s += '<circle cx="76" cy="166" r="3.5" fill="#34c759"/>' + T(85, 170, 10.5, 'dk-m', 'Bilgisayara bağlı');
+    s += R(12, 196, 210, 42, 12, 'dk-blk') + R(24, 207, 20, 20, 5, '', ' fill="#3A7BF5"') + T(54, 222, 12.5, 'dk-t', "Dosyalar'dan seç");
+    s += T(22, 268, 10, 'dk-m', 'KESTİRME');
+    s += R(12, 276, 210, 42, 12, 'dk-blk') + R(24, 287, 20, 20, 5, '', ' fill="#5856d6"') + T(54, 302, 12.5, 'dk-b', 'Kestirme adresini kopyala');
+    s += HL(9, 273, 216, 48) + T(117, 342, 11.5, '', 'Kopyalandı ✓', ' text-anchor="middle" fill="#34c759" font-family="Segoe UI"');
+    return phone(s + tap(110, 297), true);
+  }
+  function artK2() {
+    let s = '<circle cx="30" cy="54" r="15" class="dk-blk"/><path d="M33 47l-7 7 7 7" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>';
+    s += R(180, 40, 42, 28, 14, 'dk-blk') + T(201, 59, 12, 'dk-t', 'Seç', ' text-anchor="middle"');
+    s += T(14, 104, 21, 'dk-t', 'Tüm Kestirmeler', ' font-weight="700"');
+    const tiles = [['#8e98a4', 'WinDrop'], ['#4f73d9', 'Fiş Tara'], ['#4f73d9', 'Wi-Fi'], ['#ec5f67', 'Videoyu indir'], ['#30c158', 'Şarj'], ['#f47d5b', 'Yeni Kestirme']];
+    tiles.forEach((t, i) => {
+      const x = 12 + (i % 2) * 108, y = 120 + Math.floor(i / 2) * 74;
+      s += R(x, y, 102, 66, 16, '', ' fill="' + t[0] + '"') + T(x + 10, y + 54, 11, '', t[1], ' fill="#fff" font-weight="600" font-family="Segoe UI"');
+    });
+    s += '<circle cx="117" cy="452" r="24" class="dk-blk"/><path d="M117 442v20M107 452h20" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/>';
+    s += '<circle cx="117" cy="452" r="29" class="hl"/>';
+    return phone(s + tap(117, 452, 22), true);
+  }
+  function artK3() {
+    let s = edTop('WinDrop ⌄') + loopBlocks(86, 'Öğeler');
+    s += HL(41, 94, twid('Öğeler', 12) + 18, 28, 8);
+    // değişken listesi
+    s += R(40, 152, 164, 110, 14, 'dk-pop') + R(46, 158, 152, 30, 9, 'dk-sel') + T(58, 178, 12.5, 'dk-t', 'Kestirme Girişi', ' font-weight="600"');
+    s += T(58, 212, 12.5, 'dk-t', 'Pano') + T(58, 244, 12.5, 'dk-t', 'Geçerli Tarih');
+    s += searchSheet('yinele');
+    return phone(s + tap(120, 173, 16), true);
+  }
+  function artK4() {
+    let inner = R(24, 152, 200, 56, 18, 'dk-blk') + webIcon(34, 165);
+    const t = token(58, 180, 'URL', 12);
+    inner += t.svg + T(58 + t.w + 6, 180, 12, 'dk-t', 'içeriğini al') + T(205, 182, 15, 'dk-m', '›', ' text-anchor="middle"');
+    inner += HL(55, 163, t.w + 6, 26, 8);
+    let s = edTop('WinDrop ⌄') + loopBlocks(86, 'Kestirme Girişi', inner);
+    s += T(117, 290, 10.5, 'dk-m', '↑ basılı tutup buraya sürükleyin', ' text-anchor="middle"');
+    s += searchSheet('URL içeriğini');
+    return phone(s + tap(70, 175, 15), true);
+  }
+  function artK5() {
+    let s = edTop('WinDrop ⌄');
+    s += R(10, 82, 214, 30, 15, 'dk-blk') + T(24, 102, 11.5, 'dk-m', '… her öğeyle yinele');
+    s += R(16, 120, 208, 252, 18, 'dk-blk') + webIcon(26, 132);
+    const u = token(50, 146, 'windrop.local:8765/…', 11);
+    s += u.svg + T(26, 168, 11.5, 'dk-t', 'içeriğini al') + T(208, 168, 14, 'dk-m', '⌄', ' text-anchor="middle"');
+    const rows = [['Yöntem', 'POST'], ['Başlıklar', ''], ['İstek Gövdesi', 'Dosya'], ['Dosya', 'Yineleme Öğesi']];
+    rows.forEach((r, i) => {
+      const y = 202 + i * 42;
+      s += '<line x1="26" y1="' + (y - 17) + '" x2="214" y2="' + (y - 17) + '" stroke="#48484a" stroke-width=".8"/>';
+      s += T(28, y, 11, 'dk-m', r[0]);
+      if (r[1]) s += T(28, y + 16, 12, 'dk-b', r[1], ' font-weight="600"');
+      else {
+        // başlık satırı: soldaki Anahtar kutusu = filename, sağdaki Metin kutusu = Yineleme Öğesi
+        s += T(28, y + 16, 12, 'dk-t', 'filename', ' font-weight="600"');
+        const v = token(100, y + 16, 'Yineleme Öğesi', 11);
+        s += v.svg;
+      }
+    });
+    s += HL(13, 182, 214, 186, 16);
+    s += R(10, 382, 214, 34, 15, 'dk-blk') + T(24, 403, 11.5, 'dk-t', 'Yinelemeyi Bitir');
+    return phone(s, true);
+  }
+  function artK6() {
+    let s = edTop('WinDrop ⌄');
+    s += R(10, 82, 214, 58, 18, 'dk-blk') + T(20, 104, 10.5, 'dk-t', 'Paylaşma Sayfası giriş yüzeyinden');
+    const a = token(20, 126, 'Görüntüler ve Ortam', 11);
+    s += a.svg + T(20 + a.w + 5, 126, 11.5, 'dk-t', 'girişini al');
+    s += R(10, 148, 214, 34, 15, 'dk-blk') + T(22, 170, 11, 'dk-m', 'Kestirme Girişi girişinde her öğeyle…');
+    // Ayrıntılar paneli
+    s += R(8, 206, 218, 176, 22, 'dk-pop') + T(117, 232, 13, 'dk-t', 'Ayrıntılar', ' text-anchor="middle" font-weight="700"') + T(204, 232, 12, 'dk-b', 'Bitti', ' text-anchor="end" font-weight="600"');
+    s += R(18, 246, 198, 46, 12, 'dk-blk') + T(30, 265, 12, 'dk-t', 'Paylaşma Sayfasında') + T(30, 282, 12, 'dk-t', 'Göster');
+    s += R(176, 257, 34, 22, 11, '', ' fill="#34c759"') + '<circle cx="199" cy="268" r="9" fill="#fff"/>';
+    s += HL(15, 243, 204, 52, 14);
+    s += R(18, 300, 198, 34, 12, 'dk-blk') + T(30, 322, 11.5, 'dk-m', 'Apple Watch\'ta Göster');
+    // alt araç çubuğu
+    s += R(0, 428, 234, 72, 24, 'dk-blk');
+    const ic = ['↶', '↷', 'ⓘ', '⇪', '▶'];
+    ic.forEach((c, i) => { s += T(30 + i * 43.5, 470, 17, i === 2 ? 'dk-t' : 'dk-m', c, ' text-anchor="middle"'); });
+    s += '<circle cx="117" cy="464" r="17" class="hl"/>';
+    return phone(s + tap(117, 464, 15), true);
+  }
+  function artK7() {
+    let s = T(18, 58, 12.5, 'dk-b', '‹ Kestirmeler');
+    s += T(14, 98, 21, 'dk-t', 'Gelişmiş', ' font-weight="700"');
+    s += R(10, 118, 214, 62, 12, 'dk-blk') + T(22, 143, 12, 'dk-t', 'Büyük Miktarda Veri') + T(22, 161, 12, 'dk-t', 'Paylaşımına İzin Ver');
+    s += R(168, 137, 42, 24, 12, '', ' fill="#34c759"') + '<circle cx="198" cy="149" r="10" fill="#fff"/>';
+    s += HL(7, 115, 220, 68, 14);
+    s += T(16, 204, 10, 'dk-m', 'Ayarlar › Uygulamalar › Kestirmeler › Gelişmiş');
+    s += R(10, 222, 214, 44, 12, 'dk-blk') + T(22, 249, 12, 'dk-t', 'Güvenilmeyen Kestirmeler');
+    return phone(s + tap(189, 149, 16), true);
+  }
+  function artShare() {
+    let s = '';
+    const colors = ['#f4a261', '#2a9d8f', '#e76f51', '#8ab17d', '#5095fb', '#e9c46a'];
+    for (let i = 0; i < 6; i++) s += '<rect x="' + (14 + (i % 3) * 70) + '" y="' + (50 + Math.floor(i / 3) * 70) + '" width="66" height="66" rx="4" fill="' + colors[i] + '" opacity=".85"/>';
+    s += '<rect y="200" width="234" height="294" rx="22" class="ph-sheet"/>' + T(117, 228, 12, 'ph-t', '2 Fotoğraf Seçildi', ' text-anchor="middle" font-weight="600"');
+    s += '<rect x="78" y="236" width="78" height="22" rx="11" class="ph-row"/>' + T(117, 251, 11, 'ph-bt', 'Seçenekler ›', ' text-anchor="middle"');
+    s += '<rect x="75" y="233" width="84" height="28" rx="14" class="hl"/>';
+    s += sheetRow(276, 'Kopyala') + sheetRow(318, 'Paylaşılan Albüme Ekle') + sheetRow(360, 'WinDrop', true, true) + sheetRow(402, 'Duvar Kâğıdı Yap');
+    return phone(s + tap(110, 378));
+  }
+  $('#artWifi').innerHTML = artWifi();
+  $('#artHome').innerHTML = artHome();
+  $('#artSend').innerHTML = artSend();
+  $('#artK1').innerHTML = artK1();
+  $('#artK2').innerHTML = artK2();
+  $('#artK3').innerHTML = artK3();
+  $('#artK4').innerHTML = artK4();
+  $('#artK5').innerHTML = artK5();
+  $('#artK6').innerHTML = artK6();
+  $('#artK7').innerHTML = artK7();
+  $('#artShare').innerHTML = artShare();
+
+  // ------------------------------------------------------------ başlat
+  setQrMode(qrMode);
+  updateDots();
+  route();
+  tick();
+  setInterval(tick, 1500);
+})();
+</script>
+</body>
+</html>

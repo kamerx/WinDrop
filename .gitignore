@@ -1,0 +1,12 @@
+# Çalışma anında oluşan veriler: bağlantı anahtarı, gelen dosya listesi, günlük
+data/
+
+# Derleme çıktıları ve araç önbellekleri (kurulum dosyası GitHub Releases'ta yayınlanır)
+dist/
+node_modules/
+
+# Diğer
+*.log
+*.tmp
+.DS_Store
+Thumbs.db

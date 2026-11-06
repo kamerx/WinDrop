@@ -1,0 +1,42 @@
+﻿WINDROP KULLANICI LİSANS SÖZLEŞMESİ
+Sürüm 1.3 · Yürürlük tarihi: 6 Kasım 2026
+
+Lütfen WinDrop'u ("Yazılım") kurmadan önce bu sözleşmeyi dikkatle okuyun. Kurulum sırasında "Anlaşmayı kabul ediyorum" seçeneğini işaretleyerek ya da Yazılımı kullanarak bu sözleşmenin tüm hükümlerini kabul etmiş olursunuz. Kabul etmiyorsanız Yazılımı kurmayın ve kullanmayın.
+
+1. TARAFLAR VE KONU
+Bu sözleşme, Yazılımın geliştiricisi Kamer EKENEL ("Geliştirici") ile Yazılımı kuran ve kullanan kişi ("Kullanıcı") arasında, Yazılımın kullanım koşullarını belirler. Yazılım, iPhone gibi cihazlardaki fotoğraf ve videoların yerel ağ üzerinden bu bilgisayara aktarılmasını sağlar.
+
+2. KULLANIM İZNİ VE AÇIK KAYNAK LİSANSI
+2.1. Yazılım ücretsizdir. Kaynak kodu GitHub'da MIT lisansıyla yayınlanmıştır.
+2.2. MIT lisansı uyarınca herkes Yazılımı kullanabilir, kopyalayabilir, değiştirebilir, birleştirebilir, yayınlayabilir ve dağıtabilir. Tek koşul, telif bildiriminin ("Copyright (c) 2026 Kamer EKENEL") ve lisans metninin Yazılımın kopyalarında korunmasıdır. Lisans metni, programın kurulu olduğu klasördeki "lisanslar" klasöründe de bulunur.
+2.3. Kaynak kodun kopyalanması, değiştirilmesi ve dağıtılması konusunda bu sözleşme ile MIT lisansı arasında bir çelişki olursa MIT lisansı geçerlidir.
+
+3. YAZILIMIN ÇALIŞMA ŞEKLİ VE KİŞİSEL VERİLER
+3.1. Yazılım yalnızca yerel ağ üzerinde çalışır. Dosyalar internet veya bulut hizmetleri üzerinden gönderilmez.
+3.2. Geliştirici, Yazılım aracılığıyla Kullanıcıya veya aktarılan dosyalara ait hiçbir veriyi toplamaz, saklamaz ve kendisine göndermez.
+3.3. Aktarılan dosyalar Kullanıcının seçtiği klasöre (varsayılan olarak İndirilenler) kaydedilir. Ayarlar, dosya geçmişi ve günlük kayıtları yalnızca bu bilgisayarda tutulur.
+3.4. Telefonun bağlandığı adres gizli bir anahtar içerir. Bu adresi ve QR kodunu yalnızca kendi cihazlarınızla kullanın, başkalarıyla paylaşmayın.
+
+4. KULLANICININ SORUMLULUKLARI
+4.1. Yazılımı yalnızca güvendiğiniz ağlarda (örneğin ev ağınızda) kullanın. Ortak, misafir veya işyeri ağlarında kullanmanın riskleri Kullanıcıya aittir.
+4.2. Aktardığınız içeriklerin hukuka uygunluğundan, başkalarına ait fotoğraf, video ve kişisel verilerin işlenmesinden (6698 sayılı Kişisel Verilerin Korunması Kanunu dahil) Kullanıcı sorumludur.
+4.3. Önemli dosyalarınızın yedeğini almak Kullanıcının sorumluluğundadır.
+
+5. GARANTİNİN REDDİ
+Yazılım "olduğu gibi" sunulur. Geliştirici, Yazılımın kesintisiz ya da hatasız çalışacağına, her cihaz, ağ veya iOS sürümüyle uyumlu olacağına ya da belirli bir amaca uygun olduğuna dair açık veya örtülü hiçbir garanti vermez. iOS ve Kestirmeler uygulamasındaki değişiklikler, Yazılımın bazı özelliklerini etkileyebilir.
+
+6. SORUMLULUĞUN SINIRLANDIRILMASI
+Yürürlükteki mevzuatın izin verdiği en geniş ölçüde Geliştirici; veri kaybı, dosyaların bozulması, cihaz arızası, iş kaybı veya Yazılımın kullanımından ya da kullanılamamasından doğan doğrudan veya dolaylı hiçbir zarardan sorumlu tutulamaz.
+
+7. ÜÇÜNCÜ TARAF BİLEŞENLERİ VE MARKALAR
+7.1. Yazılım, Node.js çalışma ortamını (MIT lisansı) ve Microsoft Edge WebView2 bileşenlerini (Microsoft lisansı) içerir. Bu bileşenler kendi lisanslarına tabidir. Lisans metinleri, programın kurulu olduğu klasördeki "lisanslar" klasöründe bulunur.
+7.2. iPhone, iOS, Safari, AirDrop ve Kestirmeler, Apple Inc.'in ticari markalarıdır; Windows ve WebView2, Microsoft Corporation'ın ticari markalarıdır. Yazılımın Apple Inc. veya Microsoft Corporation ile herhangi bir bağlantısı yoktur ve bu şirketler tarafından onaylanmamıştır.
+
+8. GÜNCELLEMELER VE SONA ERME
+8.1. Geliştirici, Yazılımı güncelleyebilir veya geliştirmeyi durdurabilir. Bu sözleşmenin yeni sürümleri, Yazılımın yeni sürümleriyle birlikte sunulur.
+8.2. Kullanıcı, Yazılımı istediği zaman Ayarlar > Uygulamalar bölümünden kaldırarak bu sözleşmeyi sona erdirebilir.
+
+9. UYGULANACAK HUKUK
+Bu sözleşme Türkiye Cumhuriyeti kanunlarına tabidir. Uyuşmazlıklarda Türkiye Cumhuriyeti mahkemeleri ve icra daireleri yetkilidir. Tüketici sıfatıyla hareket eden Kullanıcıların kanundan doğan hakları saklıdır.
+
+Bu sözleşmeyi kabul ederek, okuduğunuzu, anladığınızı ve hükümleriyle bağlı olmayı kabul ettiğinizi beyan edersiniz.

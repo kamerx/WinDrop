@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="WinDrop">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" type="image/png" href="favicon.png">
+<title>WinDrop</title>
+<style>
+:root{
+  --bg:#f2f2f7; --card:#fff; --text:#000; --muted:#6e6e73; --sep:rgba(60,60,67,.18);
+  --blue:#3A7BF5; --blue-l:#5095FB; --green:#34c759; --red:#ff3b30; --orange:#ff9500;
+  --track:rgba(120,120,128,.18); --press:rgba(120,120,128,.14);
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#000; --card:#1c1c1e; --text:#fff; --muted:#98989f; --sep:rgba(84,84,88,.6); --track:rgba(120,120,128,.34); --press:rgba(255,255,255,.08); }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--bg);color:var(--text)}
+body{font:17px/1.35 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;-webkit-text-size-adjust:100%;
+  min-height:100vh;padding:env(safe-area-inset-top) 16px calc(28px + env(safe-area-inset-bottom))}
+main{max-width:520px;margin:0 auto}
+.hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding:44px 0 18px}
+.drop{position:relative;width:232px;height:232px;border:0;background:none;padding:0;margin:0;cursor:pointer;display:grid;place-items:center;
+  -webkit-user-select:none;user-select:none;touch-action:manipulation;outline:none}
+.wave{position:absolute;left:50%;top:50%;width:124px;height:124px;margin:-62px 0 0 -62px;border-radius:31%;
+  border:2px solid var(--blue-l);opacity:0;animation:wave 3.6s cubic-bezier(.15,.55,.35,1) infinite;pointer-events:none}
+.wave:nth-of-type(2){animation-delay:1.2s}.wave:nth-of-type(3){animation-delay:2.4s}
+@keyframes wave{0%{transform:scale(.92);opacity:.55;border-radius:31%}100%{transform:scale(1.85);opacity:0;border-radius:50%}}
+.sending .wave{animation-duration:1.8s}
+.icon{position:relative;width:124px;height:124px;display:block;filter:drop-shadow(0 10px 22px rgba(58,123,245,.38));transition:transform .15s ease}
+.drop:active .icon{transform:scale(.93)}
+.ring{position:absolute;left:0;top:0;width:232px;height:232px;transform:rotate(-90deg);opacity:0;transition:opacity .35s;pointer-events:none}
+.sending .ring,.finishing .ring{opacity:1}
+.ring circle{fill:none;stroke-width:6}
+.ring .track{stroke:var(--track)}
+.ring .bar{stroke:var(--blue);stroke-linecap:round;transition:stroke-dashoffset .35s ease}
+h1{font-size:34px;line-height:1.1;font-weight:700;margin:6px 0 8px;letter-spacing:.2px}
+.status{display:inline-flex;align-items:center;gap:8px;color:var(--muted);font-size:15px;margin:0;min-height:20px}
+.status .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none;transition:background .3s}
+.status.ok .dot{background:var(--green)} .status.bad .dot{background:var(--red)}
+.hint{color:var(--muted);font-size:15px;margin:6px 24px 0;min-height:20px}
+.title{font-size:13px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);margin:24px 16px 7px}
+.group{background:var(--card);border-radius:12px;overflow:hidden}
+.row{display:flex;align-items:center;gap:12px;min-height:50px;padding:10px 16px;width:100%;border:0;background:none;
+  color:inherit;font:inherit;text-align:left;position:relative;cursor:pointer}
+button.row:active,label.row:active{background:var(--press)}
+.row+.row::before{content:"";position:absolute;top:0;left:58px;right:0;border-top:.5px solid var(--sep)}
+.ri{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;flex:none;color:#fff}
+.ri svg{width:18px;height:18px}
+.rt{flex:1;min-width:0}
+.chev{color:var(--muted);opacity:.55;font-size:22px;line-height:1;margin-right:-4px}
+.name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta{font-size:13px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pbar{height:4px;border-radius:2px;background:var(--track);margin-top:7px;overflow:hidden}
+.pbar i{display:block;height:100%;width:0;background:var(--blue);border-radius:2px;transition:width .25s ease}
+.file.done .pbar i{background:var(--green)} .file.err .pbar i{background:var(--red)} .file.retry .pbar i{background:var(--orange)}
+.file.done .meta{color:var(--green)} .file.err .meta{color:var(--red)} .file.retry .meta{color:var(--orange)}
+.blue{color:var(--blue)}
+.note{font-size:13px;color:var(--muted);margin:8px 16px 0;line-height:1.4}
+.addr{display:block;margin:8px 0 0;padding:12px 14px;background:var(--card);border-radius:12px;font:15px/1.4 ui-monospace,Menlo,monospace;
+  word-break:break-all;-webkit-user-select:all;user-select:all}
+.awake-hint{color:var(--orange)}
+.vh{position:absolute!important;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+#awake{position:fixed;left:0;bottom:0;width:2px;height:2px;opacity:.01;pointer-events:none}
+</style>
+</head>
+<body>
+<main id="app">
+  <section class="hero">
+    <button class="drop" id="drop" type="button" aria-label="Fotoğraf veya video seç">
+      <span class="wave"></span><span class="wave"></span><span class="wave"></span>
+      <svg class="ring" viewBox="0 0 232 232" aria-hidden="true">
+        <circle class="track" cx="116" cy="116" r="108"/>
+        <circle class="bar" id="ringBar" cx="116" cy="116" r="108"/>
+      </svg>
+      <svg class="icon" viewBox="0 0 100 100" aria-hidden="true">
+        <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5095FB"/><stop offset="1" stop-color="#3A7BF5"/></linearGradient></defs>
+        <rect width="100" height="100" rx="22.5" fill="url(#g)"/>
+        <g fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round">
+          <path d="M38.75 66.9A17.5 17.5 0 1 1 61.25 66.9"/>
+          <path d="M32.32 74.57A27.5 27.5 0 1 1 67.68 74.57"/>
+          <path d="M25.9 82.23A37.5 37.5 0 1 1 74.1 82.23"/>
+        </g>
+        <circle cx="50" cy="53.5" r="6.8" fill="#fff"/>
+      </svg>
+    </button>
+    <h1>WinDrop</h1>
+    <p class="status" id="status"><span class="dot"></span><span id="statusText">Bağlanıyor…</span></p>
+    <p class="hint" id="hint">Fotoğraf veya video göndermek için simgeye dokunun</p>
+  </section>
+
+  <div class="group">
+    <button class="row" id="filesRow" type="button">
+      <span class="ri" style="background:#3A7BF5"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h4.1c.7 0 1.3.3 1.8.8L12.6 6H18.5A2.5 2.5 0 0 1 21 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/></svg></span>
+      <span class="rt">Dosyalar'dan seç</span>
+      <span class="chev">›</span>
+    </button>
+  </div>
+
+  <div id="listWrap" hidden>
+    <div class="title">Gönderilenler</div>
+    <div class="group" id="list"></div>
+  </div>
+  <p class="note awake-hint" id="awakeHint" hidden>Gönderim bitene kadar ekranı açık tutun; ekran kilitlenirse gönderim duraklar, açınca kaldığı yerden sürer.</p>
+
+  <div class="title">Kestirme</div>
+  <div class="group">
+    <button class="row" id="copy" type="button">
+      <span class="ri" style="background:#5856d6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8"/></svg></span>
+      <span class="rt blue" id="copyLabel">Kestirme adresini kopyala</span>
+    </button>
+  </div>
+  <code class="addr" id="copyOut" hidden></code>
+  <p class="note" id="copyNote">Fotoğraflar → Paylaş → WinDrop için Kestirmeler'e yapıştıracağınız adres.</p>
+
+  <input type="file" id="pickMedia" class="vh" accept="image/*,video/*" multiple>
+  <input type="file" id="pickFiles" class="vh" multiple>
+  <video id="awake" muted playsinline loop preload="none" aria-hidden="true"></video>
+</main>
+<script>
+(() => {
+  'use strict';
+  const CHUNK = 8 * 1024 * 1024;
+  const $ = (s) => document.querySelector(s);
+  const app = $('#app'), drop = $('#drop'), pickMedia = $('#pickMedia'), pickFiles = $('#pickFiles');
+  const statusEl = $('#status'), statusText = $('#statusText'), hint = $('#hint');
+  const list = $('#list'), listWrap = $('#listWrap'), awakeHint = $('#awakeHint'), vid = $('#awake');
+  const ringBar = $('#ringBar');
+  const CIRC = 2 * Math.PI * 108;
+  ringBar.style.strokeDasharray = CIRC.toFixed(2);
+  ringBar.style.strokeDashoffset = CIRC.toFixed(2);
+
+  // ---------- biçimlendirme
+  const nf = new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 1 });
+  function fmtSize(n) {
+    const u = ['bayt', 'KB', 'MB', 'GB', 'TB']; let i = 0; let v = n;
+    while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+    return (i === 0 ? Math.round(v) : nf.format(v)) + ' ' + u[i];
+  }
+  function fmtEta(sec) {
+    if (!isFinite(sec) || sec <= 0) return '';
+    if (sec < 60) return Math.ceil(sec) + ' sn kaldı';
+    const m = Math.floor(sec / 60), s = Math.round(sec % 60);
+    if (m < 60) return m + ' dk ' + s + ' sn kaldı';
+    return Math.floor(m / 60) + ' sa ' + (m % 60) + ' dk kaldı';
+  }
+
+  // ---------- CRC32 (HTTP'de crypto.subtle yok)
+  const T = new Int32Array(256);
+  for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; T[n] = c; }
+  function crc32(u8) {
+    let c = -1;
+    for (let i = 0, n = u8.length; i < n; i++) c = T[(c ^ u8[i]) & 255] ^ (c >>> 8);
+    return (c ^ -1) >>> 0;
+  }
+  async function readSlice(f, a, b) { return new Uint8Array(await f.slice(a, b).arrayBuffer()); }
+  // Dosya anahtarı içerikten: aynı dosya yeniden seçilince kaldığı yerden sürer.
+  async function fileKey(f) {
+    const n = 65536, s = f.size;
+    const head = await readSlice(f, 0, Math.min(n, s));
+    const mid = s > 3 * n ? await readSlice(f, Math.floor(s / 2) - n / 2, Math.floor(s / 2) + n / 2) : new Uint8Array(0);
+    const tail = s > n ? await readSlice(f, Math.max(0, s - n), s) : new Uint8Array(0);
+    return [crc32(head), crc32(mid), crc32(tail)].map((x) => x.toString(16)).join('-');
+  }
+
+  // ---------- istekler
+  function request(method, url, body, headers, onProgress, idleMs) {
+    idleMs = idleMs || 20000;
+    return new Promise((resolve, reject) => {
+      const x = new XMLHttpRequest();
+      let last = Date.now();
+      const watch = setInterval(() => { if (Date.now() - last > idleMs) { clearInterval(watch); x.abort(); } }, 1000);
+      x.open(method, url, true);
+      if (headers) for (const k in headers) x.setRequestHeader(k, headers[k]);
+      x.upload.onprogress = (e) => { last = Date.now(); if (onProgress) onProgress(e.loaded); };
+      x.onprogress = () => { last = Date.now(); };
+      x.onload = () => { clearInterval(watch); let data = null; try { data = JSON.parse(x.responseText); } catch (e) {} resolve({ status: x.status, data }); };
+      x.onerror = () => { clearInterval(watch); reject(new Error('Ağ hatası')); };
+      x.onabort = () => { clearInterval(watch); reject(new Error('Yanıt gelmedi')); };
+      x.send(body == null ? null : body);
+    });
+  }
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  let wake = null;
+  function waitRetry(ms) {
+    return new Promise((r) => {
+      const t = setTimeout(done, ms);
+      function done() { clearTimeout(t); if (wake === done) wake = null; r(); }
+      wake = done;
+    });
+  }
+  function nudge() { if (wake) wake(); ping(); }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') nudge(); });
+  window.addEventListener('online', nudge);
+  window.addEventListener('pageshow', nudge);
+
+  // ---------- bağlantı durumu
+  let online = null, awakeAvailable = false, running = false, pinging = false;
+  function setConn(ok) {
+    online = ok;
+    statusEl.classList.toggle('ok', ok);
+    statusEl.classList.toggle('bad', !ok);
+    if (!running) statusText.textContent = ok ? 'Bilgisayara bağlı' : 'Bilgisayara ulaşılamıyor';
+  }
+  async function ping() {
+    if (pinging || running) return;
+    pinging = true;
+    try {
+      const r = await request('GET', 'api/info?t=' + Date.now(), null, null, null, 5000);
+      if (r.status === 200 && r.data) { awakeAvailable = !!r.data.awake; setConn(true); } else setConn(false);
+    } catch (e) { setConn(false); }
+    pinging = false;
+  }
+  setInterval(() => { if (document.visibilityState === 'visible') ping(); }, 5000);
+  ping();
+
+  // ---------- ekran açık kalsın
+  function awakeOn() {
+    if (awakeAvailable) {
+      try { if (!vid.getAttribute('src')) vid.src = 'awake.mp4'; const p = vid.play(); if (p && p.catch) p.catch(() => { awakeHint.hidden = false; }); } catch (e) { awakeHint.hidden = false; }
+    } else awakeHint.hidden = false;
+  }
+  function awakeOff() { try { vid.pause(); } catch (e) {} awakeHint.hidden = true; }
+
+  // ---------- kuyruk
+  const queue = [];
+  let batch = 0;
+  const ICONS = {
+    image: ['#ff9500', '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M5.5 4h13A2.5 2.5 0 0 1 21 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5v-11A2.5 2.5 0 0 1 5.5 4Zm.5 13h12l-3.8-5.1-3 3.8-2.1-2.5Zm3-7.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/></svg>'],
+    video: ['#af52de', '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 6h9A2.5 2.5 0 0 1 16 8.5v7a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 2 15.5v-7A2.5 2.5 0 0 1 4.5 6Zm12.5 4 4.2-2.6c.4-.3.8 0 .8.4v8.4c0 .4-.4.7-.8.4L17 14Z"/></svg>'],
+    other: ['#8e8e93', '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 3h6.6c.5 0 .9.2 1.2.5l3.7 3.7c.3.3.5.8.5 1.2V19a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm6 1.5V8a1 1 0 0 0 1 1h3.5Z"/></svg>'],
+  };
+  function kindOf(f) {
+    const t = (f.type || '').toLowerCase(), n = (f.name || '').toLowerCase();
+    if (t.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|heif|dng|avif)$/.test(n)) return 'image';
+    if (t.startsWith('video/') || /\.(mov|mp4|m4v|3gp|webm|mkv)$/.test(n)) return 'video';
+    return 'other';
+  }
+  function setItem(item, text, cls) {
+    item.el.classList.remove('done', 'err', 'retry');
+    if (cls) item.el.classList.add(cls);
+    if (text != null) item.metaEl.textContent = text;
+  }
+  function batchItems() { return queue.filter((i) => i.batch === batch); }
+  function updateRing() {
+    const items = batchItems();
+    const total = items.reduce((s, i) => s + i.file.size, 0);
+    const done = items.reduce((s, i) => s + (i.state === 'done' ? i.file.size : (i.state === 'send' ? Math.min(i.file.size, i.offset + i.loaded) : 0)), 0);
+    const count = items.length;
+    const fin = items.filter((i) => i.state === 'done' || i.state === 'err').length;
+    const frac = total > 0 ? done / total : (count && fin === count ? 1 : 0);
+    ringBar.style.strokeDashoffset = (CIRC * (1 - Math.max(0, Math.min(1, frac)))).toFixed(2);
+    if (running) statusText.textContent = (online === false ? 'Bağlantı bekleniyor… ' : 'Gönderiliyor… ') + '%' + Math.floor(frac * 100) + (count > 1 ? ' · ' + Math.min(fin + 1, count) + '/' + count : '');
+  }
+  function progress(item) {
+    const sent = Math.min(item.file.size, item.offset + item.loaded);
+    const now = performance.now();
+    if (item.lastT == null || sent < item.lastB) { item.lastT = now; item.lastB = sent; }
+    else if (now - item.lastT >= 500) {
+      const inst = ((sent - item.lastB) * 1000) / (now - item.lastT);
+      item.speed = item.speed ? item.speed * 0.7 + inst * 0.3 : inst;
+      item.lastT = now; item.lastB = sent;
+    }
+    const pct = item.file.size ? sent / item.file.size : 1;
+    item.barEl.style.width = (pct * 100).toFixed(1) + '%';
+    const parts = ['%' + Math.floor(pct * 100), fmtSize(sent) + ' / ' + fmtSize(item.file.size)];
+    if (item.speed > 0) { parts.push(fmtSize(item.speed) + '/sn'); const eta = fmtEta((item.file.size - sent) / item.speed); if (eta) parts.push(eta); }
+    setItem(item, parts.join(' · '));
+    updateRing();
+  }
+
+  function fatal(msg) { const e = new Error(msg); e.fatal = true; return e; }
+
+  async function sendItem(item) {
+    const f = item.file;
+    setItem(item, 'Hazırlanıyor…');
+    if (!item.key) item.key = await fileKey(f);
+    let attempt = 0;
+    for (;;) {
+      try {
+        const b = await request('POST', 'api/begin', JSON.stringify({ name: f.name || 'dosya', size: f.size, lastModified: f.lastModified || 0, key: item.key }), { 'Content-Type': 'application/json' }, null, 15000);
+        if (b.status === 507) throw fatal('Bilgisayarda yeterli boş alan yok');
+        if (b.status !== 200 || !b.data) throw new Error('Sunucu yanıtı ' + b.status);
+        setConn(true);
+        if (b.data.done) return finishItem(item, b.data.savedAs, !item.sentAny);
+        const id = b.data.id;
+        let offset = b.data.offset;
+        item.offset = offset; item.loaded = 0;
+        progress(item);
+        while (offset < f.size) {
+          const end = Math.min(f.size, offset + CHUNK);
+          const buf = await readSlice(f, offset, end);
+          const crc = crc32(buf).toString(16).padStart(8, '0');
+          const base = offset;
+          const r = await request('POST', 'api/chunk?id=' + id + '&offset=' + offset, buf,
+            { 'Content-Type': 'application/octet-stream', 'X-CRC32': crc },
+            (loaded) => { item.offset = base; item.loaded = loaded; progress(item); });
+          item.loaded = 0;
+          if (r.status === 200 && r.data) { offset = r.data.offset; item.offset = offset; item.sentAny = true; attempt = 0; setConn(true); progress(item); continue; }
+          if (r.status === 409 && r.data) { offset = r.data.offset; item.offset = offset; if (r.data.busy) await sleep(1000); continue; }
+          if (r.status === 422) continue; // bozuk geldi: aynı parçayı yeniden gönder
+          if (r.status === 507) throw fatal('Bilgisayarda yer kalmadı');
+          throw new Error('Parça yanıtı ' + r.status);
+        }
+        setItem(item, 'Bitiriliyor…');
+        const fin = await request('POST', 'api/finish?id=' + id, null, null, null, 30000);
+        if (fin.status === 200 && fin.data && fin.data.done) return finishItem(item, fin.data.savedAs, false);
+        if (fin.status === 409) continue;
+        throw new Error('Bitirme yanıtı ' + fin.status);
+      } catch (e) {
+        if (e.fatal) throw e;
+        setConn(false);
+        attempt++;
+        const delay = Math.min(8000, 500 * Math.pow(2, Math.min(attempt - 1, 4)));
+        setItem(item, 'Bağlantı koptu · ' + Math.max(1, Math.round(delay / 1000)) + ' sn içinde yeniden denenecek', 'retry');
+        updateRing();
+        await waitRetry(delay);
+        setItem(item, 'Yeniden bağlanıyor…', 'retry');
+      }
+    }
+  }
+
+  function finishItem(item, savedAs, already) {
+    item.state = 'done';
+    item.offset = item.file.size; item.loaded = 0;
+    item.barEl.style.width = '100%';
+    const name = savedAs || item.file.name;
+    setItem(item, already ? 'Zaten bilgisayarda: ' + name : (name !== item.file.name ? 'Gönderildi · "' + name + '" olarak kaydedildi' : 'Gönderildi · ' + fmtSize(item.file.size)), 'done');
+    updateRing();
+  }
+
+  async function run() {
+    if (running) return;
+    running = true;
+    app.classList.add('sending');
+    awakeOn();
+    try {
+      for (;;) {
+        const item = queue.find((i) => i.state === 'wait');
+        if (!item) break;
+        item.state = 'send';
+        try { await sendItem(item); }
+        catch (e) {
+          item.state = 'err';
+          setItem(item, e.message || 'Gönderilemedi', 'err');
+          if (e.fatal) queue.filter((i) => i.state === 'wait').forEach((i) => { i.state = 'err'; setItem(i, e.message, 'err'); });
+        }
+      }
+    } finally {
+      running = false;
+      awakeOff();
+      updateRing();
+      const items = batchItems();
+      const ok = items.filter((i) => i.state === 'done').length;
+      const bad = items.filter((i) => i.state === 'err').length;
+      app.classList.remove('sending');
+      app.classList.add('finishing');
+      setTimeout(() => app.classList.remove('finishing'), 1500);
+      statusText.textContent = online === false ? 'Bilgisayara ulaşılamıyor' : 'Bilgisayara bağlı';
+      hint.textContent = bad ? ok + ' dosya gönderildi, ' + bad + ' dosya gönderilemedi' : (ok === 1 ? '1 dosya gönderildi ✓' : ok + ' dosya gönderildi ✓');
+    }
+  }
+
+  function addFiles(fileList) {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    if (!running) batch++;
+    for (const f of files) {
+      const el = document.createElement('div');
+      el.className = 'row file';
+      const k = kindOf(f);
+      el.innerHTML = '<span class="ri" style="background:' + ICONS[k][0] + '">' + ICONS[k][1] + '</span><div class="rt"><div class="name"></div><div class="pbar"><i></i></div><div class="meta"></div></div>';
+      el.querySelector('.name').textContent = f.name || 'dosya';
+      const item = { file: f, el, metaEl: el.querySelector('.meta'), barEl: el.querySelector('.pbar i'), state: 'wait', offset: 0, loaded: 0, batch, speed: 0 };
+      setItem(item, 'Bekliyor · ' + fmtSize(f.size));
+      list.appendChild(el);
+      queue.push(item);
+    }
+    listWrap.hidden = false;
+    hint.textContent = 'Gönderim sürerken bu sayfayı açık tutun';
+    updateRing();
+    run();
+  }
+
+  drop.addEventListener('click', () => pickMedia.click());
+  $('#filesRow').addEventListener('click', () => pickFiles.click());
+  for (const input of [pickMedia, pickFiles]) {
+    input.addEventListener('change', () => { addFiles(input.files); input.value = ''; });
+  }
+
+  // ---------- kestirme adresi (HTTP'de navigator.clipboard yok)
+  function copyText(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;font-size:16px';
+    document.body.appendChild(ta);
+    let ok = false;
+    try {
+      ta.contentEditable = 'true';
+      ta.readOnly = false;
+      const range = document.createRange();
+      range.selectNodeContents(ta);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      ta.setSelectionRange(0, text.length);
+      ok = document.execCommand('copy');
+    } catch (e) { ok = false; }
+    ta.remove();
+    try { window.getSelection().removeAllRanges(); } catch (e) {}
+    return ok;
+  }
+  $('#copy').addEventListener('click', () => {
+    const url = new URL('api/raw', location.href).href;
+    const out = $('#copyOut'), label = $('#copyLabel');
+    if (copyText(url)) {
+      label.textContent = 'Kopyalandı ✓';
+      out.hidden = true;
+      setTimeout(() => { label.textContent = 'Kestirme adresini kopyala'; }, 2500);
+    } else {
+      label.textContent = 'Kopyalanamadı — adresi aşağıdan seçin';
+      out.textContent = url;
+      out.hidden = false;
+      try { const r = document.createRange(); r.selectNodeContents(out); const s = window.getSelection(); s.removeAllRanges(); s.addRange(r); } catch (e) {}
+    }
+  });
+})();
+</script>
+</body>
+</html>
