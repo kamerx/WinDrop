@@ -15,6 +15,7 @@ Program dijital imzalı olmadığı için Windows ilk açılışta "Bilgisayarı
 - Fotoğraflar'daki Paylaş menüsünden birden fazla fotoğraf ve videoyu tek seferde gönderir. iPhone videoyu küçültmeden gönderdiğinde dosya bilgisayara da aynı boyutta gelir.
 - Ana ekrana eklenen WinDrop sayfasından dosya seçip gönderebilirsiniz. Bağlantı koparsa gönderim kaldığı yerden devam eder; büyük videolar da yarım kalmaz.
 - Bilgisayardaki pencerenin Gelenler bölümünde dosyalar güne göre küçük resimlerle listelenir. HEIC fotoğraflar da önizlenir, videolar program içinde oynatılabilir.
+- Gelenler'de bir dosyaya sağ tıklayınca **Aç**, **Dosya konumunu aç** ve **Sil** seçenekleri çıkar. Sil, dosyayı Geri Dönüşüm Kutusu'na taşır; yanlışlıkla silinen dosya oradan geri alınabilir. Klasörden başka yere taşınmış dosyaların kaydı **Listeden kaldır** ile temizlenir.
 - Her gönderimden sonra önizlemeli bir Windows bildirimi gelir. Bildirime tıklarsanız klasör açılır.
 - Aynı adlı bir dosya varsa üstüne yazmaz, yeni dosyayı `ad (2).uzantı` olarak kaydeder. Aynı dosyayı ikinci kez gönderirseniz yeni bir kopya oluşturmaz.
 - İlk açılışta kaydırmalı bir rehber açılır. Rehber, QR kodu ve iPhone'da yapılacakları ekran çizimleriyle adım adım gösterir.

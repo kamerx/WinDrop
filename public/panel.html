@@ -83,6 +83,29 @@ section{padding:26px 32px 40px;max-width:1280px}
 .vbadge svg{width:12px;height:12px;fill:#fff;margin-left:2px}
 .gonebadge{position:absolute;left:8px;top:8px;font-size:11px;background:rgba(0,0,0,.6);color:#fff;border-radius:6px;padding:2px 7px}
 .tile.gone .thumb{opacity:.5}
+.tile.ctxon .thumb{outline:3px solid var(--blue);outline-offset:2px}
+.tile.busy{opacity:.4;pointer-events:none}
+
+/* sağ tık menüsü, onay penceresi, kısa bilgi */
+.ctx{position:fixed;z-index:70;min-width:224px;background:var(--card);border-radius:10px;padding:5px;box-shadow:0 0 0 1px var(--sep),var(--shadow);-webkit-user-select:none;user-select:none}
+.ctx button{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;padding:7px 10px;border-radius:6px;cursor:pointer;font-size:13.5px;text-align:left}
+.ctx button:hover,.ctx button:focus-visible{background:var(--press);outline:0}
+.ctx svg{width:16px;height:16px;flex:none;color:var(--blue)}
+.ctx .danger,.ctx .danger svg{color:var(--red)}
+.ctxsep{height:1px;background:var(--sep);margin:4px 6px}
+.dlg{position:fixed;inset:0;z-index:80;background:var(--overlay);display:grid;place-items:center;padding:24px}
+.dlgbox{width:min(400px,100%);background:var(--card);border-radius:16px;padding:22px;box-shadow:var(--shadow);text-align:center}
+.dlgthumb{width:96px;height:96px;margin:0 auto 14px;border-radius:12px;overflow:hidden;background:var(--thumb);display:grid;place-items:center}
+.dlgthumb img{width:100%;height:100%;object-fit:cover;display:block}
+.dlgthumb svg{width:46%;height:46%;opacity:.55}
+.dlgbox h3{margin:0 0 6px;font-size:16px;font-weight:600}
+.dlgbox p{margin:0;color:var(--muted);word-break:break-word}
+.dlgbtns{display:flex;gap:10px;margin-top:20px}
+.dlgbtns .btn{flex:1;justify-content:center;padding:9px 14px}
+.btn.danger{background:var(--red);color:#fff;box-shadow:none} .btn.danger:hover{background:#e0352b}
+.btn.danger:focus-visible{outline:3px solid rgba(255,59,48,.35);outline-offset:2px}
+.snack{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:90;background:#2c2c2e;color:#fff;border-radius:10px;padding:10px 16px;font-size:13px;box-shadow:var(--shadow);max-width:min(560px,calc(100vw - 32px))}
+.snack.err{background:#c62828}
 .tname{margin-top:7px;font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tmeta{font-size:12px;color:var(--muted)}
 .empty{display:flex;flex-direction:column;align-items:center;text-align:center;padding:70px 20px;color:var(--muted)}
@@ -269,7 +292,8 @@ code{font:12.5px ui-monospace,"Cascadia Mono",Consolas,monospace;background:var(
   <div class="lbbar">
     <div class="lt"><b id="lbName"></b><span id="lbMeta"></span></div>
     <button class="btn" type="button" id="lbOpen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 4h6v6M20 4l-9 9M18 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10"/></svg>Aç</button>
-    <button class="btn" type="button" id="lbReveal"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h4.1c.7 0 1.3.3 1.8.8L12.6 6H18.5A2.5 2.5 0 0 1 21 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/></svg>Klasörde göster</button>
+    <button class="btn" type="button" id="lbReveal"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h4.1c.7 0 1.3.3 1.8.8L12.6 6H18.5A2.5 2.5 0 0 1 21 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/></svg>Dosya konumunu aç</button>
+    <button class="btn" type="button" id="lbDel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 3.5h4M6 7l1 12.5A1.6 1.6 0 0 0 8.6 21h6.8a1.6 1.6 0 0 0 1.6-1.5L18 7M10 11v6M14 11v6"/></svg><span>Sil</span></button>
     <button class="btn" type="button" id="lbClose" aria-label="Kapat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
   </div>
   <div class="lbstage">
@@ -278,6 +302,27 @@ code{font:12.5px ui-monospace,"Cascadia Mono",Consolas,monospace;background:var(
     <button class="lbnav" id="lbNext" type="button" aria-label="Sonraki"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
   </div>
 </div>
+
+<!-- sağ tık menüsü -->
+<div class="ctx" id="ctx" role="menu" hidden>
+  <button type="button" role="menuitem" data-act="open"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 4h6v6M20 4l-9 9M18 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10"/></svg>Aç</button>
+  <button type="button" role="menuitem" data-act="reveal"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h4.1c.7 0 1.3.3 1.8.8L12.6 6H18.5A2.5 2.5 0 0 1 21 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/></svg>Dosya konumunu aç</button>
+  <div class="ctxsep" data-sep></div>
+  <button type="button" role="menuitem" data-act="delete" class="danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 3.5h4M6 7l1 12.5A1.6 1.6 0 0 0 8.6 21h6.8a1.6 1.6 0 0 0 1.6-1.5L18 7M10 11v6M14 11v6"/></svg>Sil</button>
+  <button type="button" role="menuitem" data-act="forget"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>Listeden kaldır</button>
+</div>
+
+<!-- silme onayı -->
+<div class="dlg" id="dlg" hidden>
+  <div class="dlgbox" role="alertdialog" aria-modal="true" aria-labelledby="dlgTitle" aria-describedby="dlgText">
+    <div class="dlgthumb" id="dlgThumb"></div>
+    <h3 id="dlgTitle">Bu dosya silinsin mi?</h3>
+    <p id="dlgText"></p>
+    <div class="dlgbtns"><button class="btn" type="button" id="dlgNo">Vazgeç</button><button class="btn danger" type="button" id="dlgYes">Sil</button></div>
+  </div>
+</div>
+
+<div class="snack" id="snack" role="status" aria-live="polite" hidden></div>
 
 <!-- kurulum rehberi -->
 <div class="tour" id="tour" hidden>
@@ -443,6 +488,7 @@ code{font:12.5px ui-monospace,"Cascadia Mono",Consolas,monospace;background:var(
   const PLAY = '<svg viewBox="0 0 10 12"><path d="M0 0l10 6-10 6z"/></svg>';
 
   let state = null, items = [], filter = 'all', qrMode = 'name', gallerySig = '', itemsKey = '', tourAt = 0, tourAuto = false;
+  const busyRids = new Set(); // silinmekte olan kayıtlar
   try { qrMode = localStorage.getItem('windrop.qr') === 'ip' ? 'ip' : 'name'; filter = localStorage.getItem('windrop.filter') || 'all'; } catch (e) {}
 
   function post(url, body) {
@@ -621,8 +667,18 @@ code{font:12.5px ui-monospace,"Cascadia Mono",Consolas,monospace;background:var(
       const m = document.createElement('div'); m.className = 'tmeta'; m.textContent = fmtSize(it.size) + ' · ' + timeF.format(new Date(it.time));
       b.append(th, n, m);
       b.title = it.savedAs;
+      b.dataset.rid = it.rid;
+      if (busyRids.has(it.rid)) b.classList.add('busy');
       b.addEventListener('click', () => openLb(list, idx));
       b.addEventListener('dblclick', () => { if (it.exists) post('/api/open', { rid: it.rid }); });
+      b.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        // Klavyeyle (menü tuşu, Shift+F10) açılınca imleç karonun dışında olabilir.
+        const r = b.getBoundingClientRect();
+        const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+        openCtx(it, b, inside ? e.clientX : r.left + r.width / 2, inside ? e.clientY : r.top + r.height / 2);
+      });
+      b.addEventListener('keydown', (e) => { if (e.key === 'Delete') { e.preventDefault(); askDelete(it); } });
       grid.appendChild(b);
     });
     openFromHash(list);
@@ -651,6 +707,8 @@ code{font:12.5px ui-monospace,"Cascadia Mono",Consolas,monospace;background:var(
     $('#lbName').textContent = it.savedAs;
     $('#lbMeta').textContent = fmtSize(it.size) + ' · ' + fullF.format(new Date(it.time)) + ' · ' + (it.via === 'kestirme' ? 'Paylaş menüsünden' : 'WinDrop sayfasından');
     $('#lbOpen').disabled = $('#lbReveal').disabled = !it.exists;
+    $('#lbDel').disabled = busyRids.has(it.rid);
+    $('#lbDel span').textContent = it.exists ? 'Sil' : 'Listeden kaldır';
     $('#lbPrev').disabled = lbIdx <= 0;
     $('#lbNext').disabled = lbIdx >= lbList.length - 1;
     if (!it.exists) return lbMsg(stage, it, 'Bu dosya taşınmış ya da silinmiş.');
@@ -681,7 +739,146 @@ code{font:12.5px ui-monospace,"Cascadia Mono",Consolas,monospace;background:var(
   $('#lbNext').addEventListener('click', () => { if (lbIdx < lbList.length - 1) { lbIdx++; renderLb(); } });
   $('#lbOpen').addEventListener('click', () => { const it = lbList[lbIdx]; if (it) post('/api/open', { rid: it.rid }); });
   $('#lbReveal').addEventListener('click', () => { const it = lbList[lbIdx]; if (it) post('/api/reveal', { rid: it.rid }); });
+  $('#lbDel').addEventListener('click', () => { const it = lbList[lbIdx]; if (it) askDelete(it); });
   $('#lb').addEventListener('click', (e) => { if (e.target.id === 'lb' || e.target.classList.contains('lbstage')) closeLb(); });
+
+  // ------------------------------------------------------------ sağ tık menüsü
+  const ctx = $('#ctx');
+  let ctxItem = null, ctxTile = null;
+  function openCtx(it, tile, x, y) {
+    closeCtx();
+    ctxItem = it; ctxTile = tile;
+    tile.classList.add('ctxon');
+    $$('[data-act="open"],[data-act="reveal"],[data-act="delete"],[data-sep]', ctx).forEach((b) => { b.hidden = !it.exists; });
+    $('[data-act="forget"]', ctx).hidden = it.exists;
+    ctx.hidden = false;
+    ctx.style.left = Math.max(8, Math.min(x, innerWidth - ctx.offsetWidth - 8)) + 'px';
+    ctx.style.top = Math.max(8, Math.min(y, innerHeight - ctx.offsetHeight - 8)) + 'px';
+    const first = $$('button', ctx).find((b) => !b.hidden);
+    if (first) first.focus({ preventScroll: true });
+  }
+  function closeCtx(refocus) {
+    if (ctx.hidden) return;
+    ctx.hidden = true;
+    if (ctxTile) {
+      ctxTile.classList.remove('ctxon');
+      if (refocus && document.contains(ctxTile)) ctxTile.focus({ preventScroll: true });
+    }
+    ctxItem = ctxTile = null;
+  }
+  ctx.addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-act]');
+    if (!b || !ctxItem) return;
+    const it = ctxItem, act = b.dataset.act;
+    closeCtx(true);
+    if (act === 'open') post('/api/open', { rid: it.rid });
+    else if (act === 'reveal') post('/api/reveal', { rid: it.rid });
+    else askDelete(it);
+  });
+  ctx.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    const btns = $$('button', ctx).filter((b) => !b.hidden);
+    const i = btns.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown') { e.preventDefault(); btns[(i + 1) % btns.length].focus(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); btns[(i - 1 + btns.length) % btns.length].focus(); }
+    else if (e.key === 'Escape' || e.key === 'Tab') { e.preventDefault(); closeCtx(true); }
+  });
+  document.addEventListener('pointerdown', (e) => { if (!ctx.hidden && !ctx.contains(e.target)) closeCtx(); }, true);
+  window.addEventListener('blur', () => closeCtx());
+  window.addEventListener('resize', () => closeCtx());
+  $('main').addEventListener('scroll', () => closeCtx(), { passive: true });
+
+  // ------------------------------------------------------------ silme
+  let dlgResolve = null, dlgReturn = null;
+  function confirmDelete(it) {
+    return new Promise((resolve) => {
+      dlgReturn = document.activeElement;
+      const th = $('#dlgThumb');
+      th.textContent = '';
+      const url = thumbUrl(it, 200);
+      if (url) {
+        const img = new Image();
+        img.alt = '';
+        img.onerror = () => { th.innerHTML = KIND[it.kind] || KIND.other; };
+        img.src = url;
+        th.appendChild(img);
+      } else th.innerHTML = KIND[it.kind] || KIND.other;
+      $('#dlgTitle').textContent = (it.kind === 'video' ? 'Bu video' : it.kind === 'image' ? 'Bu fotoğraf' : 'Bu dosya') + ' silinsin mi?';
+      $('#dlgText').textContent = '"' + it.savedAs + '" Geri Dönüşüm Kutusu\'na taşınır. Gerekirse oradan geri alabilirsiniz.';
+      dlgResolve = resolve;
+      $('#dlg').hidden = false;
+      $('#dlgYes').focus();
+    });
+  }
+  function closeDlg(ok) {
+    if ($('#dlg').hidden) return;
+    $('#dlg').hidden = true;
+    const r = dlgResolve;
+    dlgResolve = null;
+    if (dlgReturn && document.contains(dlgReturn)) dlgReturn.focus({ preventScroll: true });
+    if (r) r(ok);
+  }
+  $('#dlgYes').addEventListener('click', () => closeDlg(true));
+  $('#dlgNo').addEventListener('click', () => closeDlg(false));
+  $('#dlg').addEventListener('click', (e) => { if (e.target.id === 'dlg') closeDlg(false); });
+  $('#dlg').addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    const other = () => (document.activeElement === $('#dlgYes') ? $('#dlgNo') : $('#dlgYes')).focus();
+    if (e.key === 'Escape') { e.preventDefault(); closeDlg(false); }
+    else if (e.key === 'Tab' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); other(); }
+  });
+
+  let snackT = null;
+  function snack(text, err) {
+    const s = $('#snack');
+    s.textContent = text;
+    s.className = 'snack' + (err ? ' err' : '');
+    s.hidden = false;
+    clearTimeout(snackT);
+    snackT = setTimeout(() => { s.hidden = true; }, err ? 7000 : 4000);
+  }
+
+  // Dosya duruyorsa onay sorulur ve Geri Dönüşüm Kutusu'na taşınır; taşınmış dosyanın
+  // yalnızca kaydı listeden kalkar.
+  async function askDelete(it) {
+    if (busyRids.has(it.rid) || !$('#dlg').hidden) return;
+    if (it.exists && !(await confirmDelete(it))) return;
+    busyRids.add(it.rid);
+    const tile = $('#grid .tile[data-rid="' + it.rid + '"]');
+    if (tile) tile.classList.add('busy');
+    const inLb = !$('#lb').hidden && lbList[lbIdx] && lbList[lbIdx].rid === it.rid;
+    if (inLb) {
+      $('#lbDel').disabled = true;
+      const v = $('#lbStage video');
+      if (v) { v.pause(); v.removeAttribute('src'); v.load(); }
+    }
+    let ok = false, msg = '';
+    try {
+      const r = await fetch('/api/delete', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WinDrop': '1' }, body: JSON.stringify({ rid: it.rid }) });
+      const j = await r.json().catch(() => ({}));
+      ok = r.ok || r.status === 404; // 404: kayıt zaten yok
+      msg = ok ? '"' + it.savedAs + '" ' + (j.recycled ? 'Geri Dönüşüm Kutusu\'na taşındı.' : 'listeden kaldırıldı.') : (j.error || 'Dosya silinemedi.');
+    } catch (e) { msg = 'WinDrop sunucusuna ulaşılamadı.'; }
+    busyRids.delete(it.rid);
+    if (ok) {
+      const tiles = $$('#grid .tile');
+      const focusAt = tile && document.activeElement === tile ? tiles.indexOf(tile) : -1;
+      items = items.filter((x) => x.rid !== it.rid);
+      const lbHad = lbList.some((x) => x.rid === it.rid);
+      lbList = lbList.filter((x) => x.rid !== it.rid);
+      renderGallery();
+      if (focusAt >= 0) { const t = $$('#grid .tile'); if (t.length) t[Math.min(focusAt, t.length - 1)].focus({ preventScroll: true }); }
+      if (!$('#lb').hidden && lbHad) {
+        if (!lbList.length) closeLb();
+        else { lbIdx = Math.min(lbIdx, lbList.length - 1); renderLb(); }
+      }
+      tick();
+    } else {
+      if (tile) tile.classList.remove('busy');
+      if (inLb) renderLb();
+    }
+    snack(msg, !ok);
+  }
 
   // ------------------------------------------------------------ rehber
   const tour = $('#tour'), track = $('#track');
@@ -761,8 +958,10 @@ code{font:12.5px ui-monospace,"Cascadia Mono",Consolas,monospace;background:var(
   }, { passive: false });
   window.addEventListener('resize', () => { if (!tour.hidden) goSlide(tIdx, false); });
   document.addEventListener('keydown', (e) => {
+    if (!$('#dlg').hidden || !ctx.hidden) return;
     if (!$('#lb').hidden) {
       if (e.key === 'Escape') closeLb();
+      else if (e.key === 'Delete') $('#lbDel').click();
       else if (e.key === 'ArrowLeft') $('#lbPrev').click();
       else if (e.key === 'ArrowRight') $('#lbNext').click();
       return;

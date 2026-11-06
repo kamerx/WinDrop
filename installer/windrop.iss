@@ -1,6 +1,6 @@
 ﻿; WinDrop kurulum sihirbazı (Inno Setup 6). build\build.ps1 ile derlenir.
 #define AppName "WinDrop"
-#define AppVersion "1.3.1"
+#define AppVersion "1.3.2"
 #define BuildDir "..\dist\build"
 
 [Setup]

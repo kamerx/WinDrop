@@ -84,7 +84,8 @@ function waitReady(timeoutMs = 15000) {
 const SERVER_EXE = process.env.WINDROP_SERVER_EXE ? path.resolve(process.env.WINDROP_SERVER_EXE) : null;
 async function startServer() {
   child = spawn(SERVER_EXE || process.execPath, SERVER_EXE ? [] : [SERVER], {
-    env: { ...process.env, WINDROP_DATA: dataDir, WINDROP_NO_MDNS: '1', WINDROP_NO_TOAST: '1' },
+    // Testlerde silinen dosyalar Geri Dönüşüm Kutusu'na değil doğrudan silinir (geçici klasör).
+    env: { ...process.env, WINDROP_DATA: dataDir, WINDROP_NO_MDNS: '1', WINDROP_NO_TOAST: '1', WINDROP_TEST_PERMANENT_DELETE: '1' },
     stdio: 'ignore', windowsHide: true,
   });
   await waitReady();
@@ -610,7 +611,7 @@ test('sayfa betikleri sözdizimi hatası içermez', () => {
 // Ayrı bir sunucu süreci (kendi klasörü ve portuyla) başlatır; çıkış kodunu bekleyebilmek için süreci döndürür.
 function spawnExtra(dir) {
   return spawn(SERVER_EXE || process.execPath, SERVER_EXE ? [] : [SERVER], {
-    env: { ...process.env, WINDROP_DATA: dir, WINDROP_NO_MDNS: '1', WINDROP_NO_TOAST: '1', WINDROP_NO_REGISTRY: '1' },
+    env: { ...process.env, WINDROP_DATA: dir, WINDROP_NO_MDNS: '1', WINDROP_NO_TOAST: '1', WINDROP_NO_REGISTRY: '1', WINDROP_TEST_PERMANENT_DELETE: '1' },
     stdio: 'ignore', windowsHide: true,
   });
 }
@@ -674,6 +675,129 @@ test('eşleşme kodu uyuşmazsa telefon anlaşılır bir mesaj görür', async (
   const other = await request('GET', '/nebu-adres/');
   assert.equal(other.status, 404);
   assert.doesNotMatch(other.text, /Eşleşme/);
+});
+
+// ------------------------------------------------------------ Gelenler'den silme
+const panelReq = (method, p, body, headers = { 'x-windrop': '1' }) =>
+  request(method, p, { hostHeader: 'localhost', body: body == null ? null : JSON.stringify(body), headers: { 'content-type': 'application/json', ...headers } });
+async function receivedItem(savedAs) {
+  const r = await panelReq('GET', '/api/received?limit=2000');
+  assert.equal(r.status, 200);
+  return r.json.items.find((x) => x.savedAs === savedAs) || null;
+}
+const savedRecords = () => JSON.parse(fs.readFileSync(path.join(dataDir, 'received.json'), 'utf8'));
+
+test('silme: dosya kaldırılır, kayıt listeden ve geçmiş dosyasından çıkar', async () => {
+  const name = `silinecek-${Date.now()}.png`;
+  assert.equal((await raw(Buffer.from('silinecek dosya'), name)).status, 200);
+  const it = await receivedItem(name);
+  assert.ok(it && it.exists, 'kayıt bulunmalı');
+  const file = path.join(destDir, name);
+  assert.ok(fs.existsSync(file));
+  // izin başlığı olmadan, başka kaynaktan ve geçersiz kimlikle reddedilir
+  assert.equal((await panelReq('POST', '/api/delete', { rid: it.rid }, {})).status, 403);
+  assert.equal((await panelReq('POST', '/api/delete', { rid: it.rid }, { 'x-windrop': '1', origin: 'http://kotu.example' })).status, 403);
+  assert.equal((await panelReq('POST', '/api/delete', {})).status, 400);
+  assert.equal((await panelReq('POST', '/api/delete', { rid: '../../x' })).status, 400);
+  assert.ok(fs.existsSync(file), 'reddedilen istekler dosyaya dokunmamalı');
+
+  const d = await panelReq('POST', '/api/delete', { rid: it.rid });
+  assert.equal(d.status, 200, d.text);
+  assert.equal(d.json.recycled, true);
+  assert.equal(fs.existsSync(file), false);
+  assert.equal(await receivedItem(name), null);
+  assert.equal(savedRecords().some((e) => e.rid === it.rid), false);
+  assert.equal((await panelReq('POST', '/api/delete', { rid: it.rid })).status, 404);
+  // telefondan aynı yol yetkisiz kullanılamaz
+  assert.equal((await request('POST', `/${TOKEN}/api/delete`, { body: JSON.stringify({ rid: it.rid }) })).status, 404);
+});
+
+test('silme: taşınmış dosyanın yalnızca kaydı kalkar, dosyaya dokunulmaz', async () => {
+  const name = `tasinan-${Date.now()}.jpg`;
+  assert.equal((await raw(Buffer.from('taşınan dosya'), name)).status, 200);
+  const moved = path.join(tmpRoot, name);
+  fs.renameSync(path.join(destDir, name), moved);
+  const it = await receivedItem(name);
+  assert.equal(it.exists, false);
+  const d = await panelReq('POST', '/api/delete', { rid: it.rid });
+  assert.equal(d.status, 200, d.text);
+  assert.equal(d.json.recycled, false);
+  assert.ok(fs.existsSync(moved), 'taşınan dosya yerinde kalmalı');
+  assert.equal(await receivedItem(name), null);
+});
+
+test('silme: aynı ada sonradan gelen dosya eski kayıt yüzünden silinmez', async () => {
+  const name = `ayni-ad-${Date.now()}.png`;
+  assert.equal((await raw(Buffer.from('birinci'), name)).status, 200);
+  const moved = path.join(tmpRoot, 'birinci-' + name);
+  fs.renameSync(path.join(destDir, name), moved);
+  assert.equal((await raw(Buffer.from('ikinci, farklı içerik'), name)).status, 200);
+  const r = await panelReq('GET', '/api/received?limit=2000');
+  const both = r.json.items.filter((x) => x.savedAs === name);
+  assert.equal(both.length, 2);
+  const [newer, older] = both; // en yeni önce gelir
+  assert.equal(newer.exists, true);
+  assert.equal(older.exists, false, 'eski kayıt yeni dosyayı kendi dosyası saymamalı');
+  assert.equal((await request('GET', `/api/file?rid=${older.rid}`, { hostHeader: 'localhost' })).status, 404);
+  assert.equal((await panelReq('POST', '/api/open', { rid: older.rid })).status, 404);
+  const d = await panelReq('POST', '/api/delete', { rid: older.rid });
+  assert.equal(d.json.recycled, false);
+  assert.equal(fs.readFileSync(path.join(destDir, name), 'utf8'), 'ikinci, farklı içerik');
+  const d2 = await panelReq('POST', '/api/delete', { rid: newer.rid });
+  assert.equal(d2.json.recycled, true);
+  assert.equal(fs.existsSync(path.join(destDir, name)), false);
+  assert.ok(fs.existsSync(moved));
+});
+
+test('geçmiş listesi: kimliksiz ya da bozuk kayıtlar düzeltilir', () => {
+  const f = path.join(tmpRoot, 'gecmis-birim.json');
+  fs.writeFileSync(f, JSON.stringify([
+    { savedAs: 'a.png', path: 'C:\\x\\a.png' },
+    { rid: 'abcdefabcdef', savedAs: 'b.png', path: 'C:\\x\\b.png' },
+    { rid: 'abcdefabcdef', savedAs: 'c.png', path: 'C:\\x\\c.png' },
+    { rid: 'abcdefabcdef' }, null, 'metin',
+  ]));
+  const r = lib.loadReceived(f);
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.list.map((e) => e.savedAs), ['a.png', 'b.png', 'c.png']);
+  const rids = r.list.map((e) => e.rid);
+  assert.ok(rids.every((x) => /^[0-9a-f]{12}$/.test(x)));
+  assert.equal(new Set(rids).size, 3);
+  assert.equal(rids[1], 'abcdefabcdef');
+  fs.writeFileSync(f, '[{bozuk');
+  assert.equal(lib.loadReceived(f, 1).ok, false);
+  assert.deepEqual(lib.loadReceived(path.join(tmpRoot, 'yok.json')), { list: [], ok: true });
+});
+
+test('geçmiş listesi açılışta okunamazsa ezilmez; sonradan okununca birleşir', async () => {
+  const dir = path.join(tmpRoot, 'gecmis-bozuk');
+  const dest = path.join(tmpRoot, 'gecmis-bozuk-gelen');
+  const port = PORT + 9;
+  const code = '1122334455667788';
+  fs.mkdirSync(dir, { recursive: true });
+  fs.mkdirSync(dest, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'config.json'), JSON.stringify({ port, token: code, dest }));
+  fs.writeFileSync(path.join(dir, 'received.json'), '[{"yarım');
+  const p = spawnExtra(dir);
+  try {
+    let ok = 0;
+    for (let i = 0; i < 80 && ok !== 200; i++) { await sleep(150); ok = await getOn(port, `/${code}/api/info`); }
+    assert.equal(ok, 200, 'sunucu açılmadı');
+    assert.ok(fs.readdirSync(dir).some((n) => n.startsWith('received.json.bozuk-')), 'okunamayan geçmişin kopyası saklanmalı');
+    // dosya sonradan okunabilir hale gelir (ör. OneDrive kilidi kalkar)
+    const old = { rid: '0a0b0c0d0e0f', savedAs: 'eski.png', path: path.join(dest, 'eski.png'), size: 1, time: 1 };
+    fs.writeFileSync(path.join(dir, 'received.json'), JSON.stringify([old]));
+    const up = await new Promise((resolve, reject) => {
+      const req = http.request({ host: '127.0.0.1', port, method: 'POST', path: `/${code}/api/raw`, headers: { filename: 'yeni.png', 'content-type': 'application/octet-stream' }, agent: false }, (res) => { res.resume(); res.on('end', () => resolve(res.statusCode)); });
+      req.on('error', reject);
+      req.end('yeni dosya');
+    });
+    assert.equal(up, 200);
+    const saved = JSON.parse(fs.readFileSync(path.join(dir, 'received.json'), 'utf8'));
+    assert.deepEqual(saved.map((e) => e.savedAs), ['eski.png', 'yeni.png']);
+  } finally {
+    p.kill('SIGKILL');
+  }
 });
 
 test('simge PNG ve ICO geçerli', () => {

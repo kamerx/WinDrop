@@ -19,7 +19,7 @@ const toastLib = require('./toast');
 // Tek exe (Node SEA) içinde mi çalışıyoruz? Öyleyse sayfalar exe'ye gömülüdür.
 let sea = null;
 try { const s = require('node:sea'); if (s.isSea()) sea = s; } catch { sea = null; }
-const VERSION = '1.3.1';
+const VERSION = '1.3.2';
 const ROOT = path.resolve(__dirname, '..');
 const PUBLIC_DIR = path.join(ROOT, 'public');
 function defaultDataDir() {
@@ -177,6 +177,29 @@ function loadConfig(configFile, log, useRegistry) {
     changed = true;
   }
   return { cfg, changed, regToken };
+}
+
+// ----------------------------------------------------------- geçmiş listesi
+// Okunamayan geçmiş dosyası boş listeyle ezilmez: önce birkaç kez denenir, olmazsa kopyası
+// saklanır ve sunucu çalışırken yeniden okunmaya çalışılır (bkz. createApp/retryReceived).
+function loadReceived(file, tries = 5) {
+  if (!fs.existsSync(file)) return { list: [], ok: true };
+  let lastErr = null;
+  for (let i = 0; i < tries; i++) {
+    try {
+      const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (!Array.isArray(raw)) { lastErr = new Error('geçersiz içerik'); break; }
+      const list = raw.filter((e) => e && typeof e === 'object' && typeof e.path === 'string' && typeof e.savedAs === 'string');
+      // Her kaydın panelde seçilebilmesi için benzersiz bir kimliği olmalı.
+      const seen = new Set();
+      for (const e of list) {
+        if (typeof e.rid !== 'string' || !/^[0-9a-f]{12}$/.test(e.rid) || seen.has(e.rid)) e.rid = crypto.randomBytes(6).toString('hex');
+        seen.add(e.rid);
+      }
+      return { list, ok: true };
+    } catch (e) { lastErr = e; if (i < tries - 1) sleepSync(300); }
+  }
+  return { list: [], ok: false, err: lastErr };
 }
 
 function formatCode(token) {
@@ -439,6 +462,70 @@ function findDownloads() {
   return fallback;
 }
 
+// ------------------------------------------------------- Geri Dönüşüm Kutusu
+// Dosya kalıcı olarak silinmez; Windows'un kendi kabuk işlemiyle Geri Dönüşüm Kutusu'na
+// taşınır. Bayraklar: FOF_SILENT | FOF_NOCONFIRMATION | FOF_ALLOWUNDO | FOF_NOERRORUI |
+// FOF_WANTNUKEWARNING. Son bayrak sayesinde dosya kutuya sığmıyorsa Windows kalıcı silmeden
+// önce sorar. Yol betiğe ortam değişkeniyle verilir, komut satırına yazılmaz.
+const RECYCLE_PS = [
+  '$ErrorActionPreference = "Stop"',
+  'try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}',
+  'try {',
+  "Add-Type -Namespace WinDropNative -Name Shell -MemberDefinition @'",
+  '[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]',
+  'public struct SHFILEOPSTRUCT {',
+  '  public IntPtr hwnd; public uint wFunc;',
+  '  [MarshalAs(UnmanagedType.LPWStr)] public string pFrom;',
+  '  [MarshalAs(UnmanagedType.LPWStr)] public string pTo;',
+  '  public ushort fFlags;',
+  '  [MarshalAs(UnmanagedType.Bool)] public bool fAnyOperationsAborted;',
+  '  public IntPtr hNameMappings;',
+  '  [MarshalAs(UnmanagedType.LPWStr)] public string lpszProgressTitle;',
+  '}',
+  '[DllImport("shell32.dll", CharSet = CharSet.Unicode)]',
+  'public static extern int SHFileOperation(ref SHFILEOPSTRUCT op);',
+  "'@",
+  '$p = $env:WINDROP_RECYCLE_PATH',
+  '$op = New-Object WinDropNative.Shell+SHFILEOPSTRUCT',
+  '$op.wFunc = 3',
+  '$op.pFrom = $p + [char]0 + [char]0',
+  '$op.fFlags = 0x4454',
+  '$r = [WinDropNative.Shell]::SHFileOperation([ref]$op)',
+  "if ($op.fAnyOperationsAborted) { 'IPTAL' } elseif ($r -ne 0) { 'HATA ' + $r } elseif (Test-Path -LiteralPath $p) { 'KALDI' } else { 'TAMAM' }",
+  "} catch { 'HATA ' + $_.Exception.Message }",
+].join('\r\n');
+
+function moveToRecycleBin(file) {
+  // Testler kullanıcının Geri Dönüşüm Kutusu'nu doldurmasın diye yalnızca orada kalıcı silinir.
+  if (process.env.WINDROP_TEST_PERMANENT_DELETE === '1') return fsp.unlink(file);
+  if (process.platform !== 'win32') {
+    return Promise.reject(Object.assign(new Error('Geri Dönüşüm Kutusu yalnızca Windows\'ta destekleniyor'), { code: 'UNSUPPORTED' }));
+  }
+  return new Promise((resolve, reject) => {
+    const fail = (code, msg) => reject(Object.assign(new Error(msg), { code }));
+    let p;
+    try {
+      p = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(RECYCLE_PS, 'utf16le').toString('base64')], {
+        windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, WINDROP_RECYCLE_PATH: file },
+      });
+    } catch (e) { return fail('FAILED', e.message); }
+    const out = [];
+    p.stdout.on('data', (d) => out.push(d));
+    p.stderr.on('data', () => {});
+    // Windows "kalıcı olarak silinsin mi?" diye sorarsa kullanıcıya zaman tanınır.
+    const timer = setTimeout(() => { try { p.kill(); } catch {} }, 180000);
+    p.on('error', (e) => { clearTimeout(timer); fail('FAILED', e.message); });
+    p.on('close', (code, signal) => {
+      clearTimeout(timer);
+      const text = Buffer.concat(out).toString('utf8').trim();
+      if (text === 'TAMAM') return resolve();
+      if (signal) return fail('TIMEOUT', 'Zaman aşımı');
+      if (text === 'IPTAL') return fail('CANCELLED', 'İptal edildi');
+      fail('FAILED', text || `PowerShell çıkış kodu ${code}`);
+    });
+  });
+}
+
 // ------------------------------------------------------------- HTTP yanıtları
 const BASE_HEADERS = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' };
 
@@ -552,8 +639,32 @@ function createApp(options = {}) {
   cfg.dest = path.resolve(cfg.dest);
   const destLabel = path.basename(cfg.dest).toLowerCase() === 'downloads' ? 'İndirilenler' : path.basename(cfg.dest);
 
-  let received = readJson(receivedFile, []);
-  if (!Array.isArray(received)) received = [];
+  let received = [];
+  let receivedRetryAt = 0; // 0: geçmiş dosyası okundu
+  {
+    const r = loadReceived(receivedFile);
+    if (r.ok) received = r.list;
+    else {
+      const keep = `${receivedFile}.bozuk-${Date.now()}`;
+      try { fs.copyFileSync(receivedFile, keep); } catch {}
+      log('error', `Geçmiş listesi okunamadı (${r.err && (r.err.code || r.err.message)}); kopyası ${path.basename(keep)} olarak saklandı`);
+      receivedRetryAt = Date.now() + 5000;
+    }
+  }
+  // Açılışta okunamayan geçmiş, sonradan okunabilirse yeni gelenlerle birleştirilir.
+  // Yazmak gerektiğinde (force) son bir kez denenir; olmazsa eski içerik .bozuk kopyasında kalır.
+  function retryReceived(force) {
+    if (!receivedRetryAt || (!force && Date.now() < receivedRetryAt)) return;
+    const r = loadReceived(receivedFile, 1);
+    if (r.ok) {
+      const known = new Set(r.list.map((e) => e.rid));
+      received = r.list.concat(received.filter((e) => !known.has(e.rid)));
+      if (received.length > 1000) received.splice(0, received.length - 1000);
+      receivedRetryAt = 0;
+      log('info', `Geçmiş listesi yeniden okundu (${r.list.length} kayıt)`);
+    } else if (force) receivedRetryAt = 0;
+    else receivedRetryAt = Date.now() + 5000;
+  }
 
   const noToast = !!process.env.WINDROP_NO_TOAST || options.noToast;
   const noMdns = !!process.env.WINDROP_NO_MDNS || options.noMdns;
@@ -638,6 +749,7 @@ function createApp(options = {}) {
       name: name || path.basename(finalPath), savedAs: path.basename(finalPath), path: finalPath,
       size, time: Date.now(), from: normalizeAddr(from), via,
     };
+    retryReceived(true);
     received.push(entry);
     if (received.length > 1000) received.splice(0, received.length - 1000);
     writeJsonSafe(receivedFile, received, log);
@@ -977,15 +1089,32 @@ function createApp(options = {}) {
     return { alias: iface.name, name: prof ? prof.name : null, category: prof ? prof.category : null, wifi: /wi-?fi|wlan|kablosuz/i.test(iface.name) };
   }
 
-  function entryJson(e) {
+  // Dosya taşınınca aynı adla yeni bir dosya gelebilir. Diskteki dosya yalnızca o yola
+  // yazılan en son kayda aittir; eski kayıt "taşınmış" sayılır ve yeni dosyaya dokunmaz.
+  const pathKey = (p) => (process.platform === 'win32' ? String(p).toLowerCase() : String(p));
+  function newerOwners() {
+    const seen = new Set(), stale = new Set();
+    for (let i = received.length - 1; i >= 0; i--) {
+      const k = pathKey(received[i].path);
+      if (seen.has(k)) stale.add(received[i]); else seen.add(k);
+    }
+    return stale;
+  }
+  function ownsFile(e, stale = newerOwners()) {
+    return !stale.has(e) && fs.existsSync(e.path);
+  }
+
+  function entryJson(e, stale) {
     return {
       rid: e.rid, savedAs: e.savedAs, size: e.size, time: e.time, via: e.via, from: e.from,
       kind: toastLib.kindOf(e.savedAs), ext: path.extname(e.savedAs).slice(1).toLowerCase(),
-      exists: fs.existsSync(e.path), path: e.path,
+      exists: ownsFile(e, stale), path: e.path,
     };
   }
+  const entriesJson = (list) => { const stale = newerOwners(); return list.map((e) => entryJson(e, stale)); };
 
   function stateJson() {
+    retryReceived(false);
     const ifaces = mdnsLib.lanInterfaces();
     const primary = primaryIp(ifaces);
     const urls = {
@@ -996,7 +1125,7 @@ function createApp(options = {}) {
     const active = [...transfers.values()]
       .filter((t) => now - t.lastAt < 15000 && (t.size == null || t.received < t.size))
       .map((t) => ({ name: t.name, size: t.size, received: t.received, rate: Math.round(t.rate || 0), via: t.via, stalled: now - t.lastAt > 4000 }));
-    const recent = received.slice(-30).reverse().map(entryJson);
+    const recent = entriesJson(received.slice(-30).reverse());
     return {
       app: 'windrop', port: actualPort, dest: cfg.dest, destLabel, urls,
       qr: { name: qrCached(urls.name), ip: urls.ip ? qrCached(urls.ip) : null },
@@ -1025,6 +1154,45 @@ function createApp(options = {}) {
     return true;
   }
 
+  // Gelenler'den silme: dosya hâlâ duruyorsa Geri Dönüşüm Kutusu'na taşınır, kayıt listeden
+  // kalkar. Dosya zaten taşınmışsa yalnızca kayıt kaldırılır.
+  const deleting = new Set();
+  async function handleDelete(res, rid) {
+    if (typeof rid !== 'string' || !/^[0-9a-f]{12}$/.test(rid)) return sendJson(res, 400, { error: 'Geçersiz istek' });
+    retryReceived(true);
+    const e = received.find((x) => x.rid === rid);
+    if (!e) return sendJson(res, 404, { error: 'Bu kayıt artık listede yok.' });
+    if (deleting.has(e)) return sendJson(res, 409, { error: 'Bu dosya zaten siliniyor.' });
+    deleting.add(e);
+    try {
+      let recycled = false;
+      if (ownsFile(e)) {
+        let st = null;
+        try { st = await fsp.lstat(e.path); } catch {}
+        if (st && !st.isFile()) return sendJson(res, 400, { error: 'Bu kayıt bir dosyayı göstermiyor.' });
+        if (st) {
+          try {
+            await moveToRecycleBin(e.path);
+            recycled = true;
+          } catch (err) {
+            log('warn', `Silinemedi "${e.savedAs}": ${err.message}`);
+            const msg = err.code === 'CANCELLED' ? 'Silme iptal edildi.'
+              : err.code === 'TIMEOUT' ? 'Silme zaman aşımına uğradı. Dosya yerinde duruyor.'
+                : 'Dosya silinemedi. Başka bir programda açık olabilir; kapatıp yeniden deneyin.';
+            return sendJson(res, 409, { error: msg, code: err.code || 'FAILED' });
+          }
+        }
+      }
+      const i = received.indexOf(e); // silme sürerken yeni dosya gelmiş olabilir, sıra yeniden bulunur
+      if (i >= 0) received.splice(i, 1);
+      writeJsonSafe(receivedFile, received, log);
+      log('info', recycled ? `Geri Dönüşüm Kutusu'na taşındı: "${e.savedAs}"` : `Listeden kaldırıldı: "${e.savedAs}"`);
+      return sendJson(res, 200, { ok: true, recycled, total: received.length });
+    } finally {
+      deleting.delete(e);
+    }
+  }
+
   async function handlePanel(req, res, u) {
     const p = u.pathname;
     if ((req.method === 'GET' || req.method === 'HEAD') && (p === '/' || p === '/index.html')) {
@@ -1035,15 +1203,16 @@ function createApp(options = {}) {
     if (p === '/api/state' && req.method === 'GET') return sendJson(res, 200, stateJson());
     if (p === '/api/ping') return sendJson(res, 200, { app: 'windrop', pid: process.pid, port: actualPort, version: VERSION, exe: process.execPath });
     if (p === '/api/received' && req.method === 'GET') {
+      retryReceived(false);
       const limit = Math.max(1, Math.min(2000, Number(u.searchParams.get('limit')) || 500));
-      return sendJson(res, 200, { total: received.length, items: received.slice(-limit).reverse().map(entryJson) });
+      return sendJson(res, 200, { total: received.length, items: entriesJson(received.slice(-limit).reverse()) });
     }
     if (p === '/api/file' && (req.method === 'GET' || req.method === 'HEAD')) {
       const e = received.find((x) => x.rid === u.searchParams.get('rid'));
-      if (!e) return sendText(res, 404, 'Bulunamadı');
+      if (!e || !ownsFile(e)) { req.resume(); return sendText(res, 404, 'Bulunamadı'); }
       return sendFileRange(req, res, e.path, MIME[path.extname(e.path).toLowerCase()] || 'application/octet-stream');
     }
-    if (p === '/api/open-folder' || p === '/api/reveal' || p === '/api/open' || p === '/api/open-network' || p === '/api/onboarded' || p === '/api/open-license') {
+    if (p === '/api/open-folder' || p === '/api/reveal' || p === '/api/open' || p === '/api/delete' || p === '/api/open-network' || p === '/api/onboarded' || p === '/api/open-license') {
       if (!panelPostAllowed(req)) { req.resume(); return sendJson(res, 403, { error: 'İzin yok' }); }
       let body = {};
       try { body = JSON.parse((await readBody(req, 4096)).toString('utf8') || '{}'); } catch {}
@@ -1069,8 +1238,9 @@ function createApp(options = {}) {
         saveConfig();
         return sendJson(res, 200, { ok: true, onboarded: cfg.onboarded });
       }
+      if (p === '/api/delete') return handleDelete(res, body.rid);
       const e = received.find((x) => x.rid === body.rid);
-      if (!e || !fs.existsSync(e.path)) return sendJson(res, 404, { error: 'Dosya bulunamadı' });
+      if (!e || !ownsFile(e)) return sendJson(res, 404, { error: 'Dosya bulunamadı' });
       openExplorer(e.path, p === '/api/reveal'); // aç: varsayılan programla; göster: klasörde seçili
       return sendJson(res, 200, { ok: true });
     }
@@ -1319,7 +1489,7 @@ function main() {
 }
 
 module.exports = {
-  createApp, main, loadConfig, formatCode, sanitizeName, splitExt, sniffExt, decodeHeaderName, isPrivateAddress, isLoopback, hostIsLocal, slugHost,
+  createApp, main, loadConfig, loadReceived, formatCode, sanitizeName, splitExt, sniffExt, decodeHeaderName, isPrivateAddress, isLoopback, hostIsLocal, slugHost,
   makeIconPng, makeIco, writeIcons, encodePng, iconRgba, findDownloads, MAX_CHUNK, TMP_DIR_NAME, VERSION,
 };
 
