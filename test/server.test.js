@@ -800,6 +800,45 @@ test('geçmiş listesi açılışta okunamazsa ezilmez; sonradan okununca birle�
   }
 });
 
+// ------------------------------------------------- paket kapsayıcısı (MSIX) koruması
+test('paket kopyası tanınır: yalnızca …\\Packages\\…\\LocalCache\\… yönlendirmesi', () => {
+  const dir = 'C:\\Users\\a\\AppData\\Local\\WinDrop\\data';
+  assert.equal(lib.isPackageCopy(dir, 'C:\\Users\\a\\AppData\\Local\\Packages\\Claude_x1\\LocalCache\\Local\\WinDrop\\data'), true);
+  assert.equal(lib.isPackageCopy(dir, '\\\\?\\C:\\Users\\a\\AppData\\Local\\Packages\\Some.App_8wekyb\\LocalCache\\Local\\WinDrop\\data'), true);
+  assert.equal(lib.isPackageCopy(dir, dir), false);
+  assert.equal(lib.isPackageCopy(dir, dir.toUpperCase() + '\\'), false);
+  // taşınmış AppData ya da bağlantı (junction): paket kopyası değildir
+  assert.equal(lib.isPackageCopy(dir, 'D:\\Profil\\AppData\\Local\\WinDrop\\data'), false);
+  // normal bir klasörde deneme dosyası iz bırakmaz
+  const d = fs.mkdtempSync(path.join(tmpRoot, 'yer-'));
+  assert.equal(lib.packageCopyOf(d), null);
+  assert.deepEqual(fs.readdirSync(d), []);
+});
+
+test('paket kapsayıcısında başlatılan sunucu yeni kod üretmez, başlamaz', async (t) => {
+  // Yalnızca testler bir MSIX paketinin kapsayıcısında çalışıyorsa (ör. paketli bir uygulamanın
+  // komut penceresi) gerçek yönlendirme denenebilir; normal bilgisayarda atlanır.
+  if (process.platform !== 'win32' || !process.env.LOCALAPPDATA) return t.skip('Windows değil');
+  const dir = path.join(process.env.LOCALAPPDATA, `WinDropPaketDenemesi-${process.pid}`);
+  fs.mkdirSync(dir, { recursive: true });
+  try {
+    if (!lib.packageCopyOf(dir)) return t.skip('paket kapsayıcısında çalışılmıyor');
+    const p = spawn(SERVER_EXE || process.execPath, SERVER_EXE ? [] : [SERVER], {
+      env: { ...process.env, WINDROP_DATA: dir, WINDROP_NO_MDNS: '1', WINDROP_NO_TOAST: '1', WINDROP_NO_REGISTRY: '1', WINDROP_TEST_PACKAGE_CHECK: '1' },
+      stdio: 'ignore', windowsHide: true,
+    });
+    const code = await new Promise((resolve) => {
+      const tm = setTimeout(() => { p.kill('SIGKILL'); resolve('zaman aşımı'); }, 20000);
+      p.on('exit', (c) => { clearTimeout(tm); resolve(c); });
+    });
+    assert.equal(code, 4);
+    assert.equal(fs.existsSync(path.join(dir, 'config.json')), false, 'kopyada eşleşme kodu üretilmemeli');
+    assert.match(fs.readFileSync(path.join(dir, 'windrop.log'), 'utf8'), /başka bir uygulamanın içinden başlatıldı/);
+  } finally {
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
+  }
+});
+
 test('simge PNG ve ICO geçerli', () => {
   const png = lib.makeIconPng(32, { rounded: true });
   assert.equal(png.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');

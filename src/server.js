@@ -19,7 +19,7 @@ const toastLib = require('./toast');
 // Tek exe (Node SEA) içinde mi çalışıyoruz? Öyleyse sayfalar exe'ye gömülüdür.
 let sea = null;
 try { const s = require('node:sea'); if (s.isSea()) sea = s; } catch { sea = null; }
-const VERSION = '1.3.2';
+const VERSION = '1.3.3';
 const ROOT = path.resolve(__dirname, '..');
 const PUBLIC_DIR = path.join(ROOT, 'public');
 function defaultDataDir() {
@@ -177,6 +177,31 @@ function loadConfig(configFile, log, useRegistry) {
     changed = true;
   }
   return { cfg, changed, regToken };
+}
+
+// ------------------------------------------------- paket kapsayıcısı (MSIX)
+// Microsoft Store'dan ya da MSIX paketiyle kurulmuş bir program (ör. bir komut penceresi
+// barındıran uygulama) WinDrop'u başlatırsa Windows, AppData'ya yazılan yeni dosyaları o
+// programın özel kopyasına (…\Packages\<paket>\LocalCache\…) yönlendirir. O kopyada çalışan
+// WinDrop gerçek ayarları göremez ve ikinci bir eşleşme kodu üretir. Klasör normal görünür;
+// içine açılan bir dosyanın gerçek yolu (GetFinalPathNameByHandle) yönlendirmeyi ortaya çıkarır.
+function isPackageCopy(dir, realDir) {
+  const norm = (p) => path.resolve(String(p).replace(/^\\\\\?\\/, '')).replace(/[\\/]+$/, '').toLowerCase();
+  return norm(realDir) !== norm(dir) && /[\\/]packages[\\/][^\\/]+[\\/]localcache[\\/]/i.test(String(realDir));
+}
+
+function packageCopyOf(dir) {
+  if (process.platform !== 'win32') return null;
+  const probe = path.join(dir, `.yer-${process.pid}.tmp`);
+  try {
+    fs.writeFileSync(probe, '');
+    const realDir = path.dirname(fs.realpathSync.native(probe));
+    return isPackageCopy(dir, realDir) ? realDir : null;
+  } catch {
+    return null;
+  } finally {
+    try { fs.rmSync(probe, { force: true }); } catch {}
+  }
 }
 
 // ----------------------------------------------------------- geçmiş listesi
@@ -628,10 +653,20 @@ function createApp(options = {}) {
   const configFile = path.join(dataDir, 'config.json');
   const receivedFile = path.join(dataDir, 'received.json');
 
+  const installedDir = !!sea && process.platform === 'win32' &&
+    path.resolve(defaultDataDir()).toLowerCase() === dataDir.toLowerCase();
+  // Kurulu program başka bir uygulamanın özel AppData kopyasında çalışmaz (yukarıdaki açıklama).
+  if (installedDir || process.env.WINDROP_TEST_PACKAGE_CHECK === '1') {
+    const copy = packageCopyOf(dataDir);
+    if (copy) {
+      const e = new Error(`WinDrop başka bir uygulamanın içinden başlatıldı; Windows ayarları ${copy} kopyasına yönlendiriyor. Eşleşme kodu ikiye bölünmesin diye başlatılmadı. WinDrop'u Başlat menüsünden açın.`);
+      e.code = 'PACKAGE_COPY';
+      throw e;
+    }
+  }
   // Kayıt defteri yedeği yalnızca kurulu programın varsayılan ayar klasöründe kullanılır;
   // testler ve geliştirme sürümü gerçek kodu etkilemez.
-  const useRegistry = !!sea && process.platform === 'win32' && !process.env.WINDROP_NO_REGISTRY &&
-    path.resolve(defaultDataDir()).toLowerCase() === dataDir.toLowerCase();
+  const useRegistry = installedDir && !process.env.WINDROP_NO_REGISTRY;
   const loaded = loadConfig(configFile, log, useRegistry);
   const cfg = loaded.cfg;
   let cfgChanged = loaded.changed;
@@ -1473,7 +1508,7 @@ function main() {
     const line = `${localStamp()} [error] Başlatılamadı: ${e.stack || e.message}\n`;
     try { fs.mkdirSync(dataDir, { recursive: true }); fs.appendFileSync(path.join(dataDir, 'windrop.log'), line); } catch { fallbackLog(line); }
     // Bildirim alanındaki program birkaç saniye sonra yeniden dener (açılıştaki geçici erişim sorunları için).
-    process.exit(e.code === 'CONFIG_UNREADABLE' ? 3 : 1);
+    process.exit(e.code === 'CONFIG_UNREADABLE' ? 3 : e.code === 'PACKAGE_COPY' ? 4 : 1);
   }
   process.on('uncaughtException', (e) => app.log('error', `Yakalanmamış hata: ${e && (e.stack || e.message)}`));
   process.on('unhandledRejection', (e) => app.log('error', `Yakalanmamış söz: ${e && (e.stack || e.message || e)}`));
@@ -1489,7 +1524,7 @@ function main() {
 }
 
 module.exports = {
-  createApp, main, loadConfig, loadReceived, formatCode, sanitizeName, splitExt, sniffExt, decodeHeaderName, isPrivateAddress, isLoopback, hostIsLocal, slugHost,
+  createApp, main, loadConfig, loadReceived, isPackageCopy, packageCopyOf, formatCode, sanitizeName, splitExt, sniffExt, decodeHeaderName, isPrivateAddress, isLoopback, hostIsLocal, slugHost,
   makeIconPng, makeIco, writeIcons, encodePng, iconRgba, findDownloads, MAX_CHUNK, TMP_DIR_NAME, VERSION,
 };
 

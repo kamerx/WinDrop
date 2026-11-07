@@ -62,6 +62,7 @@ Bağlantı HTTP ile kurulur ve şifrelenmez. iOS, yerel ağdaki bir bilgisayar i
 - Program imzasız olduğu için Windows SmartScreen uyarısı çıkar. Bazı antivirüs programları az bilinen imzasız dosyalar için yanlış alarm verebilir.
 - Paylaş menüsünden gönderilen dosyanın adında Türkçe karakter varsa (örneğin "ı"), iOS adı o harfte keser. Dosyanın içeriği eksiksiz gelir, yalnızca adı kısalır. Kamera fotoğraflarının adları (IMG_1234 gibi) etkilenmez.
 - Yalnızca Windows'ta çalışır. Mac için bir sürüm yok.
+- WinDrop'u MSIX paketiyle kurulmuş başka bir uygulamanın içinden (ör. böyle bir uygulamanın komut penceresinden) başlatırsanız Windows, WinDrop'un ayarlarını o uygulamaya ait ayrı bir klasörde tutar ve aynı bilgisayarda ikinci bir eşleşme kodu oluşur. WinDrop bu durumu fark eder, açılmaz ve sizden Başlat menüsünden açmanızı ister.
 
 ## Nasıl çalışır
 

@@ -26,9 +26,9 @@ using Microsoft.Win32;
 [assembly: AssemblyCompany("Kamer EKENEL")]
 [assembly: AssemblyProduct("WinDrop")]
 [assembly: AssemblyCopyright("© 2026 Kamer EKENEL")]
-[assembly: AssemblyVersion("1.3.2.0")]
-[assembly: AssemblyFileVersion("1.3.2.0")]
-[assembly: AssemblyInformationalVersion("1.3.2")]
+[assembly: AssemblyVersion("1.3.3.0")]
+[assembly: AssemblyFileVersion("1.3.3.0")]
+[assembly: AssemblyInformationalVersion("1.3.3")]
 
 namespace WinDrop
 {
@@ -41,19 +41,22 @@ namespace WinDrop
         [STAThread]
         private static int Main(string[] args)
         {
-            bool background = false, quit = false;
+            bool background = false, quit = false, placeCheck = false;
             string capture = null, hash = null;
             for (int i = 0; i < args.Length; i++)
             {
                 string s = args[i].ToLowerInvariant();
                 if (s == "/background") background = true;
                 else if (s == "/quit") quit = true;
+                else if (s == "/yer-kontrol") placeCheck = true;
                 else if (s == "/capture" && i + 1 < args.Length) capture = args[++i];
                 else if (s == "/hash" && i + 1 < args.Length) hash = args[++i];
                 else if (s == "/port" && i + 1 < args.Length) { int p; if (int.TryParse(args[++i], out p)) Paths.PortOverride = p; }
                 else if (s == "/dest" && i + 1 < args.Length) Paths.DestOverride = args[++i];
             }
             if (quit) return Quit();
+            // Deneme için: ayarlar başka bir uygulamanın kopyasına yönleniyorsa 4, değilse 0 döner.
+            if (placeCheck) return Paths.PackageCopy() != null ? 4 : 0;
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
@@ -63,6 +66,30 @@ namespace WinDrop
             {
                 Application.Run(new MainWindow(null, capture, hash));
                 return 0;
+            }
+
+            // Başka bir uygulamanın paket kapsayıcısından başlatıldıysa ayarlar o uygulamanın özel
+            // kopyasına gider ve ikinci bir eşleşme kodu oluşur. Bu durumda WinDrop açılmaz.
+            string copy = Paths.PackageCopy();
+            if (copy != null)
+            {
+                if (!background)
+                {
+                    try
+                    {
+                        // Gerçek WinDrop zaten çalışıyorsa onun penceresi öne getirilir.
+                        EventWaitHandle ev;
+                        if (EventWaitHandle.TryOpenExisting(ShowEventName, out ev)) { ev.Set(); ev.Dispose(); return 0; }
+                    }
+                    catch { }
+                    MessageBox.Show(
+                        "WinDrop başka bir uygulamanın içinden başlatıldı.\n\n" +
+                        "Windows bu durumda WinDrop'un ayarlarını o uygulamaya ait ayrı bir klasörde tutar. " +
+                        "Bu, telefonla eşleşme kodunun ikiye bölünmesine yol açacağı için WinDrop açılmadı.\n\n" +
+                        "WinDrop'u Başlat menüsünden ya da masaüstündeki kısayoldan açın.",
+                        "WinDrop", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+                return 4;
             }
 
             bool created;
@@ -118,6 +145,32 @@ namespace WinDrop
         public static readonly string DataDir = Path.Combine(Root, "data");
         public static readonly string ConfigFile = Path.Combine(DataDir, "config.json");
         private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern uint GetFinalPathNameByHandle(Microsoft.Win32.SafeHandles.SafeFileHandle h, StringBuilder buf, uint len, uint flags);
+
+        // Ayar klasörüne açılan bir dosyanın gerçek yolu …\Packages\<paket>\LocalCache\… altındaysa
+        // WinDrop bir MSIX paketinin kapsayıcısında çalışıyordur; o kopyanın yolunu döndürür.
+        public static string PackageCopy()
+        {
+            try
+            {
+                Directory.CreateDirectory(DataDir);
+                string probe = Path.Combine(DataDir, ".yer-" + Process.GetCurrentProcess().Id + ".tmp");
+                using (FileStream fs = new FileStream(probe, FileMode.Create, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.DeleteOnClose))
+                {
+                    StringBuilder sb = new StringBuilder(1024);
+                    uint n = GetFinalPathNameByHandle(fs.SafeFileHandle, sb, (uint)sb.Capacity, 0);
+                    if (n == 0 || n >= sb.Capacity) return null;
+                    string real = sb.ToString();
+                    if (real.StartsWith(@"\\?\") && !real.StartsWith(@"\\?\UNC\")) real = real.Substring(4);
+                    string dir = Path.GetDirectoryName(real);
+                    if (string.Equals(dir.TrimEnd('\\'), DataDir.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase)) return null;
+                    return Regex.IsMatch(dir, @"\\Packages\\[^\\]+\\LocalCache\\", RegexOptions.IgnoreCase) ? dir : null;
+                }
+            }
+            catch { return null; }
+        }
 
         private static string ReadConfig()
         {
